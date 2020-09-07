@@ -1,0 +1,9 @@
+[package]
+name = "ogle"
+version = "0.1.0"
+authors = ["Leandro Lisboa Penz <lpenz@lpenz.org>"]
+edition = "2018"
+
+[dependencies]
+structopt = "0.3.17"
+chrono = "0.4.15"
