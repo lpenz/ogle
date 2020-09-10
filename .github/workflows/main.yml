@@ -65,3 +65,11 @@ jobs:
         with:
           command: clippy
           args: -- -D warnings
+  # Action from https://github.com/marketplace/actions/install-nix
+  nix-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: cachix/install-nix-action@v10
+      - run: nix-build
+
