@@ -1,11 +1,10 @@
 ---
-# Just the standard from
-# https://github.com/actions-rs/meta/blob/master/recipes/quickstart.md
-on: [push, pull_request]
 name: CI
+on: [push, pull_request]
 jobs:
-  check:
-    name: check
+  # Rust actions from:
+  # https://github.com/actions-rs/meta/blob/master/recipes/quickstart.md
+  rust-check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -17,8 +16,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: check
-  test:
-    name: test
+  rust-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -30,8 +28,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: test
-  fmt:
-    name: rustfmt
+  rust-fmt:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -45,8 +42,7 @@ jobs:
         with:
           command: fmt
           args: --all -- --check
-  clippy:
-    name: clippy
+  rust-clippy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -60,4 +56,3 @@ jobs:
         with:
           command: clippy
           args: -- -D warnings
-
