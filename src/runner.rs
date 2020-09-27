@@ -6,6 +6,8 @@ use std::io;
 use std::io::BufRead;
 use std::process::Command;
 use std::process::Stdio;
+use std::thread;
+use std::time;
 
 use crate::cli::Cli;
 
@@ -46,5 +48,8 @@ pub fn run(cli: &Cli) {
             }
         }
         lastout = currout;
+        if !different {
+            thread::sleep(time::Duration::from_secs(1));
+        }
     }
 }
