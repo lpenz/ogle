@@ -9,3 +9,11 @@ pub struct Cli {
     /// The command to run
     pub command: Vec<String>,
 }
+
+#[test]
+fn dashes() {
+    let cli = Cli::from_iter(vec!["ogle", "--", "ls", "-l"]);
+    assert_eq!(cli.command[0], "ls");
+    assert_eq!(cli.command[1], "-l");
+    assert_eq!(cli.command.len(), 2);
+}
