@@ -22,6 +22,7 @@ pub fn buildcmd(cli: &Cli) -> Command {
 
 pub fn run(cli: &Cli) {
     let mut lastout = vec![];
+    let period = time::Duration::from_secs(cli.period);
     loop {
         let mut cmd = buildcmd(&cli);
         let mut child = cmd.spawn().expect("error running command");
@@ -49,7 +50,7 @@ pub fn run(cli: &Cli) {
         }
         lastout = currout;
         if !different {
-            thread::sleep(time::Duration::from_secs(1));
+            thread::sleep(period);
         }
     }
 }
