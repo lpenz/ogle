@@ -23,6 +23,7 @@ pub fn buildcmd(cli: &Cli) -> Command {
 pub fn run(cli: &Cli) {
     let mut lastout = vec![];
     let period = time::Duration::from_secs(cli.period);
+    let mut first = true;
     loop {
         let mut cmd = buildcmd(&cli);
         let mut child = cmd.spawn().expect("error running command");
@@ -41,11 +42,15 @@ pub fn run(cli: &Cli) {
             }
             if lastout.len() < iline + 1 || currout[iline] != lastout[iline] {
                 // Print everything so far
+                if !first {
+                    println!();
+                }
                 println!("{}", chrono::offset::Local::now());
                 for l in &currout {
                     println!("{}", l);
                 }
                 different = true;
+                first = false;
             }
         }
         lastout = currout;
