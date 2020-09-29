@@ -12,11 +12,19 @@ use std::time;
 use crate::cli::Cli;
 
 pub fn buildcmd(cli: &Cli) -> Command {
-    let mut cmd = Command::new(&cli.command[0]);
+    let mut cmd = if cli.shell {
+        let mut cmd = Command::new("/bin/sh");
+        cmd.args(&["-c"]);
+        cmd.args(&[cli.command[0].as_str()]);
+        cmd
+    } else {
+        let mut cmd = Command::new(&cli.command[0]);
+        cmd.args(cli.command.iter().skip(1));
+        cmd
+    };
     cmd.stdin(Stdio::null());
     cmd.stdout(Stdio::piped());
     // cmd.stderr(Stdio::piped());
-    cmd.args(cli.command.iter().skip(1));
     cmd
 }
 

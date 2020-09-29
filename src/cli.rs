@@ -13,6 +13,10 @@ pub struct Cli {
     #[structopt(short, long, default_value = "1")]
     pub period: u64,
 
+    /// Invoke the shell on the single command argument
+    #[structopt(short = "c", long = "shell")]
+    pub shell: bool,
+
     /// The command to run
     pub command: Vec<String>,
 }
@@ -39,6 +43,13 @@ impl Cli {
 
 For more information try --help",
                 clap::ErrorKind::EmptyValue,
+            ))
+        } else if cli.shell && cli.command.len() != 1 {
+            Err(clap::Error::with_description(
+                "In shell mode, command must be in a single argument
+
+For more information try --help",
+                clap::ErrorKind::InvalidValue,
             ))
         } else {
             Ok(cli)
@@ -69,4 +80,14 @@ fn period() {
     assert_eq!(cli.period, 5);
     let cli = Cli::from_iter_safe(vec!["ogle", "--period", "7", "--", "ls", "-l"]).unwrap();
     assert_eq!(cli.period, 7);
+}
+
+#[test]
+fn shell() {
+    let cli = Cli::from_iter_safe(vec!["ogle", "-c", "--", "ls", "-l"]);
+    assert!(cli.is_err());
+    let cli = Cli::from_iter_safe(vec!["ogle", "-c", "--", "ls -l"]).unwrap();
+    assert!(cli.shell);
+    assert_eq!(cli.command[0], "ls -l");
+    assert_eq!(cli.command.len(), 1);
 }
