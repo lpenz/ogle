@@ -17,6 +17,10 @@ pub struct Cli {
     #[structopt(short = "c", long = "shell")]
     pub shell: bool,
 
+    /// Loop until the command exists with success
+    #[structopt(short = "z", long = "until-success")]
+    pub until_success: bool,
+
     /// The command to run
     pub command: Vec<String>,
 }

@@ -62,6 +62,14 @@ pub fn run(cli: &Cli) -> Result<(), Box<dyn Error>> {
                 first = false;
             }
         }
+        let status_res = child.wait();
+        if cli.until_success {
+            if let Ok(status) = status_res {
+                if status.success() {
+                    return Ok(());
+                }
+            }
+        }
         lastout = currout;
         if !different {
             thread::sleep(period);
