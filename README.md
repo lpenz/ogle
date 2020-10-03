@@ -1,4 +1,5 @@
 [![Github workflow](https://github.com/lpenz/ogle/workflows/CI/badge.svg)](https://github.com/lpenz/ogle/actions)
+[![codecov](https://codecov.io/gh/lpenz/ogle/branch/master/graph/badge.svg)](https://codecov.io/gh/lpenz/ogle)
 
 # ogle
 
