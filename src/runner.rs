@@ -5,12 +5,21 @@
 use std::error::Error;
 use std::io;
 use std::io::BufRead;
+use std::process;
 use std::process::Command;
 use std::process::Stdio;
 use std::thread;
 use std::time;
 
 use crate::cli::Cli;
+
+pub fn buildcmdline(cli: &Cli) -> String {
+    if cli.shell {
+        format!("/bin/sh -c \"{}\"", cli.command[0].as_str())
+    } else {
+        cli.command.join(" ")
+    }
+}
 
 pub fn buildcmd(cli: &Cli) -> Command {
     let mut cmd = if cli.shell {
@@ -29,37 +38,58 @@ pub fn buildcmd(cli: &Cli) -> Command {
     cmd
 }
 
+pub fn first_run(cli: &Cli) -> Result<(process::ExitStatus, Vec<String>), Box<dyn Error>> {
+    let mut cmd = buildcmd(&cli);
+    println!(
+        "$ {} # at {}",
+        buildcmdline(&cli),
+        chrono::offset::Local::now()
+    );
+    let mut child = cmd.spawn()?;
+    let stdout = child.stdout.take().ok_or("error taking stdout")?;
+    let bufstdout = io::BufReader::new(stdout);
+    let mut lines = vec![];
+    for line_result in bufstdout.lines() {
+        let line = line_result?;
+        println!("{}", line);
+        lines.push(line);
+    }
+    let status = child.wait()?;
+    println!("{}", chrono::offset::Local::now());
+    Ok((status, lines))
+}
+
 pub fn run(cli: &Cli) -> Result<(), Box<dyn Error>> {
-    let mut lastout = vec![];
+    let first_result = first_run(cli)?;
     let period = time::Duration::from_secs(cli.period);
-    let mut first = true;
+    let mut last_lines = first_result.1;
     let mut cmd = buildcmd(&cli);
     loop {
         let mut child = cmd.spawn()?;
-        let stdout = child.stdout.take().expect("error taking stdout");
-        // let stderr = child.stderr().take().expect("error taking stdout");
+        let stdout = child.stdout.take().ok_or("error taking stdout")?;
         let bufstdout = io::BufReader::new(stdout);
 
-        let mut currout = vec![];
+        let mut lines = vec![];
         let mut different = false;
-        for (iline, lineres) in bufstdout.lines().enumerate() {
-            let line = lineres?;
-            currout.push(line);
+        for (iline, line_result) in bufstdout.lines().enumerate() {
+            let line = line_result?;
+            lines.push(line);
             if different {
-                println!("{}", currout[iline]);
+                println!("{}", lines[iline]);
                 continue;
             }
-            if lastout.len() < iline + 1 || currout[iline] != lastout[iline] {
+            if last_lines.len() < iline + 1 || lines[iline] != last_lines[iline] {
                 // Print everything so far
-                if !first {
-                    println!();
-                }
-                println!("{}", chrono::offset::Local::now());
-                for l in &currout {
+                println!();
+                println!(
+                    "$ {} # at {}",
+                    buildcmdline(&cli),
+                    chrono::offset::Local::now()
+                );
+                for l in &lines {
                     println!("{}", l);
                 }
                 different = true;
-                first = false;
             }
         }
         let status_res = child.wait();
@@ -70,7 +100,7 @@ pub fn run(cli: &Cli) -> Result<(), Box<dyn Error>> {
                 }
             }
         }
-        lastout = currout;
+        last_lines = lines;
         if !different {
             thread::sleep(period);
         }
