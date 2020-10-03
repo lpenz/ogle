@@ -55,7 +55,6 @@ pub fn first_run(cli: &Cli) -> Result<(process::ExitStatus, Vec<String>), Box<dy
         lines.push(line);
     }
     let status = child.wait()?;
-    println!("{}", chrono::offset::Local::now());
     Ok((status, lines))
 }
 
