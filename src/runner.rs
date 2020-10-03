@@ -2,6 +2,7 @@
 // This file is subject to the terms and conditions defined in
 // file 'LICENSE', which is part of this source code package.
 
+use std::error::Error;
 use std::io;
 use std::io::BufRead;
 use std::process::Command;
@@ -28,13 +29,13 @@ pub fn buildcmd(cli: &Cli) -> Command {
     cmd
 }
 
-pub fn run(cli: &Cli) {
+pub fn run(cli: &Cli) -> Result<(), Box<dyn Error>> {
     let mut lastout = vec![];
     let period = time::Duration::from_secs(cli.period);
     let mut first = true;
+    let mut cmd = buildcmd(&cli);
     loop {
-        let mut cmd = buildcmd(&cli);
-        let mut child = cmd.spawn().expect("error running command");
+        let mut child = cmd.spawn()?;
         let stdout = child.stdout.take().expect("error taking stdout");
         // let stderr = child.stderr().take().expect("error taking stdout");
         let bufstdout = io::BufReader::new(stdout);
@@ -42,7 +43,7 @@ pub fn run(cli: &Cli) {
         let mut currout = vec![];
         let mut different = false;
         for (iline, lineres) in bufstdout.lines().enumerate() {
-            let line = lineres.expect("error reading line");
+            let line = lineres?;
             currout.push(line);
             if different {
                 println!("{}", currout[iline]);
