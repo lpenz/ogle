@@ -1,8 +1,13 @@
 [package]
 name = "ogle"
-version = "0.1.0"
+description = "Execute a command periodically, showing the output only when it changes"
+version = "1.0.0"
 authors = ["Leandro Lisboa Penz <lpenz@lpenz.org>"]
 edition = "2018"
+license = "MIT"
+readme = "README.md"
+homepage = "https://github.com/lpenz/ogle"
+repository = "https://github.com/lpenz/ogle"
 
 [dependencies]
 structopt = "0.3.17"
