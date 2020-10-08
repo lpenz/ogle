@@ -4,8 +4,9 @@
 
 use std::error::Error;
 
-fn main() -> Result<(), Box<dyn Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
     let args = ogle::cli::Cli::from_args();
-    ogle::runner::run(&args)?;
+    ogle::runner::run_loop(&args).await?;
     Ok(())
 }

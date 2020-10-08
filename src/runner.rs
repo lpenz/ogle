@@ -2,14 +2,14 @@
 // This file is subject to the terms and conditions defined in
 // file 'LICENSE', which is part of this source code package.
 
-use std::error::Error;
-use std::io;
-use std::io::BufRead;
-use std::process;
-use std::process::Command;
+use anyhow::Result;
+use std::process::ExitStatus;
 use std::process::Stdio;
-use std::thread;
-use std::time;
+use tokio::io;
+use tokio::io::AsyncBufReadExt;
+use tokio::process::Command;
+use tokio::stream::StreamExt;
+use tokio::time;
 
 use crate::cli::Cli;
 
@@ -34,74 +34,93 @@ pub fn buildcmd(cli: &Cli) -> Command {
     };
     cmd.stdin(Stdio::null());
     cmd.stdout(Stdio::piped());
-    // cmd.stderr(Stdio::piped());
+    cmd.stderr(Stdio::piped());
     cmd
 }
 
-pub fn first_run(cli: &Cli) -> Result<(process::ExitStatus, Vec<String>), Box<dyn Error>> {
-    let mut cmd = buildcmd(&cli);
-    println!(
-        "$ {} # at {}",
-        buildcmdline(&cli),
-        chrono::offset::Local::now()
-    );
-    let mut child = cmd.spawn()?;
-    let stdout = child.stdout.take().ok_or("error taking stdout")?;
-    let bufstdout = io::BufReader::new(stdout);
-    let mut lines = vec![];
-    for line_result in bufstdout.lines() {
-        let line = line_result?;
-        println!("{}", line);
-        lines.push(line);
-    }
-    let status = child.wait()?;
-    Ok((status, lines))
+#[derive(Debug, Default)]
+pub struct RunData {
+    status: Option<ExitStatus>,
+    output: Vec<String>,
 }
 
-pub fn run(cli: &Cli) -> Result<(), Box<dyn Error>> {
-    let first_result = first_run(cli)?;
-    let period = time::Duration::from_secs(cli.period);
-    let mut last_lines = first_result.1;
-    let mut cmd = buildcmd(&cli);
-    loop {
-        let mut child = cmd.spawn()?;
-        let stdout = child.stdout.take().ok_or("error taking stdout")?;
-        let bufstdout = io::BufReader::new(stdout);
+impl RunData {
+    pub fn success(&self) -> bool {
+        self.status.map_or(false, |s| s.success())
+    }
+}
 
-        let mut lines = vec![];
-        let mut different = false;
-        for (iline, line_result) in bufstdout.lines().enumerate() {
-            let line = line_result?;
-            lines.push(line);
-            if different {
-                println!("{}", lines[iline]);
-                continue;
-            }
-            if last_lines.len() < iline + 1 || lines[iline] != last_lines[iline] {
-                // Print everything so far
-                println!();
-                println!(
-                    "$ {} # at {}",
-                    buildcmdline(&cli),
-                    chrono::offset::Local::now()
-                );
-                for l in &lines {
-                    println!("{}", l);
-                }
-                different = true;
-            }
+pub async fn stream_task<T>(
+    cmdline: String,
+    last_lines: Vec<String>,
+    mut stream: T,
+) -> Result<Vec<String>>
+where
+    T: StreamExt<Item = Result<String>> + std::marker::Unpin + Send + 'static,
+{
+    let mut lines = vec![];
+    let mut different = false;
+    let mut iline = 0;
+    while let Some(line0) = stream.next().await {
+        let line = line0.map_err(anyhow::Error::from)?;
+        lines.push(line);
+        if different {
+            println!("{}", lines[iline]);
+            iline += 1;
+            continue;
         }
-        let status_res = child.wait();
-        if cli.until_success {
-            if let Ok(status) = status_res {
-                if status.success() {
-                    return Ok(());
-                }
+        if last_lines.len() < iline + 1 || lines[iline] != last_lines[iline] {
+            // Print everything so far
+            println!();
+            println!("$ {} # at {}", cmdline, chrono::offset::Local::now());
+            for l in &lines {
+                println!("{}", l);
             }
+            different = true;
         }
-        last_lines = lines;
-        if !different {
-            thread::sleep(period);
+        iline += 1;
+    }
+    Ok(lines)
+}
+
+pub fn std_to_stream<T: tokio::io::AsyncRead>(
+    name: &str,
+    stdopt: Option<T>,
+) -> Result<impl StreamExt<Item = Result<String>>> {
+    let std = stdopt.ok_or_else(|| anyhow::anyhow!("error taking {:?}", name))?;
+    let br = io::BufReader::new(std);
+    Ok(br.lines().map(|r| r.map_err(anyhow::Error::from)))
+}
+
+pub async fn run_once(cli: &Cli, last_rundata: RunData) -> Result<RunData> {
+    let mut cmd = buildcmd(&cli);
+    let mut child = cmd.spawn()?;
+    let stdout_stream = std_to_stream("stdout", child.stdout.take())?;
+    let stderr_stream = std_to_stream("stderr", child.stderr.take())?;
+    let both_stream = stdout_stream.merge(stderr_stream);
+    let both_task = stream_task(buildcmdline(cli), last_rundata.output, both_stream);
+    tokio::spawn(async move {
+        let (status, vecboth) = tokio::join!(child, both_task);
+        Ok(RunData {
+            status: Some(status?),
+            output: vecboth?,
+        })
+    })
+    .await?
+}
+
+pub async fn run_loop(cli: &Cli) -> Result<()> {
+    let mut last_rundata = run_once(cli, RunData::default()).await?;
+    if cli.until_success && last_rundata.success() {
+        return Ok(());
+    }
+    let period = time::Duration::from_secs(cli.period);
+    loop {
+        let rundata = run_once(cli, last_rundata).await?;
+        if cli.until_success && rundata.success() {
+            return Ok(());
         }
+        last_rundata = rundata;
+        time::delay_for(period).await;
     }
 }
