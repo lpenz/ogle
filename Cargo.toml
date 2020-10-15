@@ -14,4 +14,5 @@ structopt = "0.3.17"
 chrono = "0.4.15"
 clap = { version = "2.33", default-features = false }
 anyhow = "1.0.33"
-tokio = { version = "0.2", features = ["macros", "rt-core", "io-util", "process","time", "stream"] }
+tokio = { version = "0.2", features = ["macros", "rt-core", "io-util", "process","time", "stream", "sync"] }
+indicatif = "0.15"
