@@ -3,4 +3,5 @@
 // file 'LICENSE', which is part of this source code package.
 
 pub mod cli;
+pub mod progbar;
 pub mod runner;

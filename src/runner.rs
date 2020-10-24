@@ -3,7 +3,6 @@
 // file 'LICENSE', which is part of this source code package.
 
 use anyhow::Result;
-use indicatif;
 use std::process::ExitStatus;
 use std::process::Stdio;
 use std::sync::{Arc, Mutex};
@@ -15,6 +14,9 @@ use tokio::sync::mpsc;
 use tokio::time;
 
 use crate::cli::Cli;
+use crate::progbar::Progbar;
+
+const REFRESH_DELAY: time::Duration = time::Duration::from_millis(200);
 
 pub fn buildcmdline(cli: &Cli) -> String {
     if cli.shell {
@@ -54,19 +56,6 @@ impl RunData {
     }
 }
 
-pub fn progbar(duration: time::Duration, position: time::Duration) -> indicatif::ProgressBar {
-    let pb = indicatif::ProgressBar::hidden();
-    pb.set_style(
-        indicatif::ProgressStyle::default_bar()
-            .template("{msg} {bar:40.cyan/blue}")
-            .progress_chars("##-"),
-    );
-    pb.set_length(duration.as_millis() as u64);
-    pb.set_position(position.as_millis() as u64);
-    pb.set_draw_target(indicatif::ProgressDrawTarget::stderr());
-    pb
-}
-
 #[derive(Debug)]
 pub enum StreamItem {
     Line(String),
@@ -86,39 +75,33 @@ where
     let mut lines = vec![];
     let mut different = false;
     let mut iline = 0;
-    let mut pb = progbar(last_period, time::Duration::default());
-    pb.set_message("running");
-    let start = time::Instant::now();
+    let mut pb = Progbar::new_timer("running", last_period);
     while let Some(item) = stream.next().await {
         match item {
             StreamItem::Line(line) => {
                 lines.push(line);
                 if different {
-                    pb.finish_and_clear();
+                    pb.hide();
                     println!("{}", lines[iline]);
-                    pb = progbar(last_period, time::Instant::now() - start);
-                    pb.set_message("running");
-                    //pb.set_position((time::Instant::now() - start).as_millis() as u64);
+                    pb.refresh();
                     iline += 1;
                     continue;
                 }
                 if last_lines.len() < iline + 1 || lines[iline] != last_lines[iline] {
                     // Print everything so far
-                    pb.finish_and_clear();
+                    pb.hide();
                     println!();
                     println!("$ {} # at {}", cmdline, chrono::offset::Local::now());
                     for l in &lines {
                         println!("{}", l);
                     }
                     different = true;
-                    pb = progbar(last_period, time::Instant::now() - start);
-                    pb.set_message("running");
-                    // pb.set_position((time::Instant::now() - start).as_millis() as u64);
+                    pb.refresh();
                 }
                 iline += 1;
             }
             StreamItem::Tick => {
-                pb.set_position((time::Instant::now() - start).as_millis() as u64);
+                pb.refresh();
             }
             _ => { /* ignore read errors */ }
         }
@@ -142,9 +125,8 @@ pub async fn ticker(
     mut tx: tokio::sync::mpsc::Sender<StreamItem>,
     done_guard: &Arc<Mutex<bool>>,
 ) -> Result<()> {
-    let delay = time::Duration::from_millis(100);
     loop {
-        time::delay_for(delay).await;
+        time::delay_for(REFRESH_DELAY).await;
         tx.send(StreamItem::Tick).await?;
         let done = done_guard.lock().unwrap();
         if *done {
@@ -178,6 +160,8 @@ pub async fn run_once(cli: &Cli, last_rundata: RunData) -> Result<RunData> {
         last_rundata.duration,
         stream,
     );
+    // We use done_guard mutex to protect stdou/err
+    #[allow(clippy::mutex_atomic)]
     let done_guard = Arc::new(Mutex::new(false));
     let ticker = ticker(tx, &done_guard);
     let wait = wait(child, &done_guard);
@@ -191,11 +175,9 @@ pub async fn run_once(cli: &Cli, last_rundata: RunData) -> Result<RunData> {
 
 pub async fn run_loop(cli: &Cli) -> Result<()> {
     let mut last_rundata = run_once(cli, RunData::default()).await?;
-    // let duration = time::Instant::now() - start;
     if cli.until_success && last_rundata.success() {
         return Ok(());
     }
-    let delay = time::Duration::from_millis(100);
     loop {
         let rundata = run_once(cli, last_rundata).await?;
         if cli.until_success && rundata.success() {
@@ -203,15 +185,11 @@ pub async fn run_loop(cli: &Cli) -> Result<()> {
         }
         last_rundata = rundata;
         let cli_period = time::Duration::from_secs(cli.period);
-        let progbar = progbar(cli_period, time::Duration::default());
-        let mut now = time::Instant::now();
-        let end = now + cli_period;
-        while now < end {
-            time::delay_for(delay).await;
-            let nownew = time::Instant::now();
-            progbar.set_message("sleeping");
-            progbar.inc((nownew - now).as_millis() as u64);
-            now = nownew;
+        let mut progbar = Progbar::new_sleep("sleeping", cli_period);
+        let end = time::Instant::now() + cli_period;
+        while time::Instant::now() < end {
+            progbar.refresh();
+            time::delay_for(REFRESH_DELAY).await;
         }
     }
 }
