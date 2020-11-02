@@ -16,7 +16,7 @@ use tokio::time;
 use crate::cli::Cli;
 use crate::progbar::Progbar;
 
-const REFRESH_DELAY: time::Duration = time::Duration::from_millis(200);
+const REFRESH_DELAY: time::Duration = time::Duration::from_millis(150);
 
 pub fn buildcmdline(cli: &Cli) -> String {
     if cli.shell {

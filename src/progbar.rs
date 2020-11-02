@@ -39,15 +39,22 @@ impl Progbar {
         sleep: bool,
     ) -> indicatif::ProgressBar {
         let pb = indicatif::ProgressBar::hidden();
-        let onlyspin = duration.as_millis() == 0;
+        let dur = duration.as_millis();
+        let fmt = format!("{{msg}}{{bar:{}}}", dur / 300);
         pb.set_style(
             indicatif::ProgressStyle::default_bar()
-                .template(if onlyspin {
+                .template(if sleep {
+                    fmt.as_str()
+                } else if dur == 0 {
+                    "{msg:12} [{spinner}]"
+                } else if dur <= 1000 {
+                    ""
+                } else if dur <= 3000 {
                     "{msg:12} [{spinner}]"
                 } else {
                     "{msg:12} [{bar:55}] {spinner}"
                 })
-                .progress_chars(if sleep { "-<=" } else { "=>-" })
+                .progress_chars(if sleep { ".. " } else { "=>-" })
                 .tick_chars("-\\|/ "),
         );
         pb.set_message(msg);
