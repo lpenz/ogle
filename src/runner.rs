@@ -74,20 +74,18 @@ where
 {
     let mut lines = vec![];
     let mut different = false;
-    let mut iline = 0;
+    let mut nlines = 0;
     let mut pb = Progbar::new_timer("running", last_period);
     while let Some(item) = stream.next().await {
         match item {
             StreamItem::Line(line) => {
                 lines.push(line);
+                nlines += 1;
                 if different {
                     pb.hide();
-                    println!("{}", lines[iline]);
+                    println!("{}", lines[nlines - 1]);
                     pb.refresh();
-                    iline += 1;
-                    continue;
-                }
-                if last_lines.len() < iline + 1 || lines[iline] != last_lines[iline] {
+                } else if last_lines.len() < nlines || lines[nlines - 1] != last_lines[nlines - 1] {
                     // Print everything so far
                     pb.hide();
                     println!();
@@ -98,13 +96,22 @@ where
                     different = true;
                     pb.refresh();
                 }
-                iline += 1;
             }
             StreamItem::Tick => {
                 pb.refresh();
             }
             _ => { /* ignore read errors */ }
         }
+    }
+    /* Process is done, check if we got less lines: */
+    if !different && last_lines.len() > nlines {
+        pb.hide();
+        println!();
+        println!("$ {} # at {}", cmdline, chrono::offset::Local::now());
+        for l in &lines {
+            println!("{}", l);
+        }
+        pb.refresh();
     }
     Ok(lines)
 }
