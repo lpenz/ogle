@@ -13,24 +13,34 @@ pub struct Progbar {
     sleep: bool,
 }
 
-impl Progbar {
-    pub fn new_timer(msg: &str, duration: time::Duration) -> Progbar {
-        Progbar::new_with_sleep(msg, duration, false)
-    }
-
-    pub fn new_sleep(msg: &str, duration: time::Duration) -> Progbar {
-        Progbar::new_with_sleep(msg, duration, true)
-    }
-
-    pub fn new_with_sleep(msg: &str, duration: time::Duration, sleep: bool) -> Progbar {
+impl Default for Progbar {
+    fn default() -> Progbar {
         Progbar {
-            pb: Progbar::create_indicatif_pb(msg, duration, sleep),
+            pb: indicatif::ProgressBar::hidden(),
             start: time::Instant::now(),
             hidden: true,
-            duration,
-            msg: msg.to_string(),
-            sleep,
+            duration: time::Duration::from_secs(0),
+            msg: "".to_string(),
+            sleep: false,
         }
+    }
+}
+
+impl Progbar {
+    pub fn set_timer(&mut self, msg: &str, duration: time::Duration) {
+        self.hide();
+        self.duration = duration;
+        self.msg = msg.to_string();
+        self.sleep = false;
+        self.show();
+    }
+
+    pub fn set_sleep(&mut self, msg: &str, duration: time::Duration) {
+        self.hide();
+        self.duration = duration;
+        self.msg = msg.to_string();
+        self.sleep = true;
+        self.show();
     }
 
     fn create_indicatif_pb(
@@ -81,13 +91,15 @@ impl Progbar {
         self.hidden = true;
     }
 
-    pub fn refresh(&mut self) {
-        if self.hidden {
-            self.pb
-                .set_draw_target(indicatif::ProgressDrawTarget::stderr());
-            self.hidden = false;
-        }
-        self.pb.set_position(Progbar::pos_from_dur(self.elapsed()));
+    pub fn show(&mut self) {
+        self.pb = Progbar::create_indicatif_pb(&self.msg, self.duration, self.sleep);
+        self.pb
+            .set_draw_target(indicatif::ProgressDrawTarget::stderr());
         self.hidden = false;
+        self.refresh();
+    }
+
+    pub fn refresh(&mut self) {
+        self.pb.set_position(Progbar::pos_from_dur(self.elapsed()));
     }
 }

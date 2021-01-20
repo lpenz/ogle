@@ -75,7 +75,8 @@ where
     let mut lines = vec![];
     let mut different = false;
     let mut nlines = 0;
-    let mut pb = Progbar::new_timer("running", last_period);
+    let mut pb = Progbar::default();
+    pb.set_timer("running", last_period);
     while let Some(item) = stream.next().await {
         match item {
             StreamItem::Line(line) => {
@@ -84,7 +85,7 @@ where
                 if different {
                     pb.hide();
                     println!("{}", lines[nlines - 1]);
-                    pb.refresh();
+                    pb.show();
                 } else if last_lines.len() < nlines || lines[nlines - 1] != last_lines[nlines - 1] {
                     // Print everything so far
                     pb.hide();
@@ -94,7 +95,7 @@ where
                         println!("{}", l);
                     }
                     different = true;
-                    pb.refresh();
+                    pb.show();
                 }
             }
             StreamItem::Tick => {
@@ -111,7 +112,7 @@ where
         for l in &lines {
             println!("{}", l);
         }
-        pb.refresh();
+        pb.show();
     }
     Ok(lines)
 }
@@ -192,7 +193,8 @@ pub async fn run_loop(cli: &Cli) -> Result<()> {
         }
         last_rundata = rundata;
         let cli_period = time::Duration::from_secs(cli.period);
-        let mut progbar = Progbar::new_sleep("sleeping", cli_period);
+        let mut progbar = Progbar::default();
+        progbar.set_sleep("sleeping", cli_period);
         let end = time::Instant::now() + cli_period;
         while time::Instant::now() < end {
             progbar.refresh();
