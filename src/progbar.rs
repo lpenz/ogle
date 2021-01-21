@@ -32,6 +32,7 @@ impl Progbar {
         self.duration = duration;
         self.msg = msg.to_string();
         self.sleep = false;
+        self.start = time::Instant::now();
         self.show();
     }
 
@@ -40,6 +41,7 @@ impl Progbar {
         self.duration = duration;
         self.msg = msg.to_string();
         self.sleep = true;
+        self.start = time::Instant::now();
         self.show();
     }
 

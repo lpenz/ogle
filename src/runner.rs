@@ -68,6 +68,7 @@ pub async fn stream_task<T>(
     last_lines: Vec<String>,
     last_period: time::Duration,
     mut stream: T,
+    pb: &mut Progbar,
 ) -> Result<Vec<String>>
 where
     T: StreamExt<Item = StreamItem> + std::marker::Unpin + Send + 'static,
@@ -75,7 +76,6 @@ where
     let mut lines = vec![];
     let mut different = false;
     let mut nlines = 0;
-    let mut pb = Progbar::default();
     pb.set_timer("running", last_period);
     while let Some(item) = stream.next().await {
         match item {
@@ -154,7 +154,7 @@ pub async fn wait(
     status.map_err(|e| anyhow::anyhow!(e))
 }
 
-pub async fn run_once(cli: &Cli, last_rundata: RunData) -> Result<RunData> {
+pub async fn run_once(cli: &Cli, last_rundata: RunData, pb: &mut Progbar) -> Result<RunData> {
     let mut cmd = buildcmd(&cli);
     let mut child = cmd.spawn()?;
     let start = time::Instant::now();
@@ -167,6 +167,7 @@ pub async fn run_once(cli: &Cli, last_rundata: RunData) -> Result<RunData> {
         last_rundata.output,
         last_rundata.duration,
         stream,
+        pb,
     );
     // We use done_guard mutex to protect stdou/err
     #[allow(clippy::mutex_atomic)]
@@ -182,22 +183,22 @@ pub async fn run_once(cli: &Cli, last_rundata: RunData) -> Result<RunData> {
 }
 
 pub async fn run_loop(cli: &Cli) -> Result<()> {
-    let mut last_rundata = run_once(cli, RunData::default()).await?;
+    let mut pb = Progbar::default();
+    let mut last_rundata = run_once(cli, RunData::default(), &mut pb).await?;
     if cli.until_success && last_rundata.success() {
         return Ok(());
     }
+    let cli_period = time::Duration::from_secs(cli.period);
     loop {
-        let rundata = run_once(cli, last_rundata).await?;
+        let rundata = run_once(cli, last_rundata, &mut pb).await?;
         if cli.until_success && rundata.success() {
             return Ok(());
         }
         last_rundata = rundata;
-        let cli_period = time::Duration::from_secs(cli.period);
-        let mut progbar = Progbar::default();
-        progbar.set_sleep("sleeping", cli_period);
+        pb.set_sleep("sleeping", cli_period);
         let end = time::Instant::now() + cli_period;
         while time::Instant::now() < end {
-            progbar.refresh();
+            pb.refresh();
             time::delay_for(REFRESH_DELAY).await;
         }
     }
