@@ -16,3 +16,4 @@ clap = { version = "2.33", default-features = false }
 anyhow = "1.0.33"
 tokio = { version = "0.2", features = ["macros", "rt-core", "io-util", "process","time", "stream", "sync"] }
 indicatif = "0.15"
+term_size = "0.3.2"

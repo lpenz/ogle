@@ -70,7 +70,18 @@ impl Progbar {
                 if dur <= 3000 {
                     String::from("=> running [{spinner}]")
                 } else {
-                    format!("=> running [{{bar:{}}}] {{spinner}}", dur / refresh)
+                    let max_width = if let Some((w, _)) = term_size::dimensions() {
+                        w
+                    } else {
+                        80
+                    };
+                    let mut bar_size = (dur / refresh) as usize;
+                    let header = "=> running ";
+                    let overhead = header.len() + 5;
+                    if bar_size + overhead > max_width {
+                        bar_size = max_width - overhead;
+                    }
+                    format!("{}[{{bar:{}}}] {{spinner}}", header, bar_size)
                 }
             }
         };
