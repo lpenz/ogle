@@ -63,8 +63,18 @@ pub enum StreamItem {
     Tick,
 }
 
+pub fn print_backlog(pb: &mut Progbar, cmdline: &str, lines: &[String]) {
+    pb.hide();
+    println!();
+    println!("$ {} # at {}", cmdline, chrono::offset::Local::now());
+    for l in lines {
+        println!("{}", l);
+    }
+    pb.show();
+}
+
 pub async fn stream_task<T>(
-    cmdline: String,
+    cmdline: &str,
     last_lines: Vec<String>,
     last_period: time::Duration,
     mut stream: T,
@@ -76,7 +86,7 @@ where
     let mut lines = vec![];
     let mut different = false;
     let mut nlines = 0;
-    pb.set_timer("running", last_period);
+    pb.set_running(last_period);
     while let Some(item) = stream.next().await {
         match item {
             StreamItem::Line(line) => {
@@ -88,14 +98,8 @@ where
                     pb.show();
                 } else if last_lines.len() < nlines || lines[nlines - 1] != last_lines[nlines - 1] {
                     // Print everything so far
-                    pb.hide();
-                    println!();
-                    println!("$ {} # at {}", cmdline, chrono::offset::Local::now());
-                    for l in &lines {
-                        println!("{}", l);
-                    }
+                    print_backlog(pb, cmdline, &lines);
                     different = true;
-                    pb.show();
                 }
             }
             StreamItem::Tick => {
@@ -106,13 +110,7 @@ where
     }
     /* Process is done, check if we got less lines: */
     if !different && last_lines.len() > nlines {
-        pb.hide();
-        println!();
-        println!("$ {} # at {}", cmdline, chrono::offset::Local::now());
-        for l in &lines {
-            println!("{}", l);
-        }
-        pb.show();
+        print_backlog(pb, cmdline, &lines);
     }
     Ok(lines)
 }
@@ -162,8 +160,9 @@ pub async fn run_once(cli: &Cli, last_rundata: RunData, pb: &mut Progbar) -> Res
     let stderr_stream = std_to_stream("stderr", child.stderr.take())?;
     let (tx, rx) = mpsc::channel(2);
     let stream = stdout_stream.merge(stderr_stream).merge(rx);
+    let cmdline = buildcmdline(cli);
     let task = stream_task(
-        buildcmdline(cli),
+        &cmdline,
         last_rundata.output,
         last_rundata.duration,
         stream,
@@ -195,7 +194,7 @@ pub async fn run_loop(cli: &Cli) -> Result<()> {
             return Ok(());
         }
         last_rundata = rundata;
-        pb.set_sleep("sleeping", cli_period);
+        pb.set_sleep(cli_period);
         let end = time::Instant::now() + cli_period;
         while time::Instant::now() < end {
             pb.refresh();

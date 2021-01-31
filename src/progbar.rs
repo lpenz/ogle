@@ -4,13 +4,20 @@
 
 use tokio::time;
 
+#[derive(PartialEq, Eq, Clone, Copy)]
+pub enum Mode {
+    Running,
+    Sleeping,
+}
+
 pub struct Progbar {
     pb: indicatif::ProgressBar,
     start: time::Instant,
     hidden: bool,
     duration: time::Duration,
     msg: String,
-    sleep: bool,
+    mode: Mode,
+    mode_wanted: Mode,
 }
 
 impl Default for Progbar {
@@ -21,52 +28,54 @@ impl Default for Progbar {
             hidden: true,
             duration: time::Duration::from_secs(0),
             msg: "".to_string(),
-            sleep: false,
+            mode: Mode::Running,
+            mode_wanted: Mode::Running,
         }
     }
 }
 
 impl Progbar {
-    pub fn set_timer(&mut self, msg: &str, duration: time::Duration) {
-        self.hide();
+    pub fn set_running(&mut self, duration: time::Duration) {
+        self.mode_wanted = Mode::Running;
         self.duration = duration;
-        self.msg = msg.to_string();
-        self.sleep = false;
+        self.msg = "=> running".to_string();
         self.start = time::Instant::now();
-        self.show();
     }
 
-    pub fn set_sleep(&mut self, msg: &str, duration: time::Duration) {
-        self.hide();
+    pub fn set_sleep(&mut self, duration: time::Duration) {
+        self.mode_wanted = Mode::Sleeping;
         self.duration = duration;
-        self.msg = msg.to_string();
-        self.sleep = true;
+        self.msg = "=> sleeping".to_string();
         self.start = time::Instant::now();
+    }
+
+    pub fn do_switch_mode(&mut self) {
+        if self.mode == self.mode_wanted {
+            return;
+        }
+        self.hide();
+        self.mode = self.mode_wanted;
         self.show();
     }
 
     fn create_indicatif_pb(
         msg: &str,
+        mode: Mode,
         duration: time::Duration,
-        sleep: bool,
     ) -> indicatif::ProgressBar {
         let pb = indicatif::ProgressBar::hidden();
         let dur = duration.as_millis();
         let fmt = format!("{{msg}}{{bar:{}}}", dur / 300);
         pb.set_style(
             indicatif::ProgressStyle::default_bar()
-                .template(if sleep {
+                .template(if mode == Mode::Sleeping {
                     fmt.as_str()
-                } else if dur == 0 {
-                    "{msg:12} [{spinner}]"
-                } else if dur <= 1000 {
-                    ""
                 } else if dur <= 3000 {
                     "{msg:12} [{spinner}]"
                 } else {
                     "{msg:12} [{bar:55}] {spinner}"
                 })
-                .progress_chars(if sleep { ".. " } else { "=>-" })
+                .progress_chars(if mode == Mode::Sleeping { ".. " } else { "=>-" })
                 .tick_chars("-\\|/ "),
         );
         pb.set_message(msg);
@@ -82,19 +91,14 @@ impl Progbar {
         time::Instant::now() - self.start
     }
 
-    pub fn set_message(&mut self, msg: &str) {
-        self.msg = msg.to_string();
-        self.pb.set_message(msg);
-    }
-
     pub fn hide(&mut self) {
         self.pb.finish_and_clear();
-        self.pb = Progbar::create_indicatif_pb(&self.msg, self.duration, self.sleep);
+        self.pb = Progbar::create_indicatif_pb(&self.msg, self.mode, self.duration);
         self.hidden = true;
     }
 
     pub fn show(&mut self) {
-        self.pb = Progbar::create_indicatif_pb(&self.msg, self.duration, self.sleep);
+        self.pb = Progbar::create_indicatif_pb(&self.msg, self.mode, self.duration);
         self.pb
             .set_draw_target(indicatif::ProgressDrawTarget::stderr());
         self.hidden = false;
@@ -102,6 +106,9 @@ impl Progbar {
     }
 
     pub fn refresh(&mut self) {
+        if self.mode != self.mode_wanted {
+            self.do_switch_mode();
+        }
         self.pb.set_position(Progbar::pos_from_dur(self.elapsed()));
     }
 }
