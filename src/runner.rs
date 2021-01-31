@@ -16,7 +16,7 @@ use tokio::time;
 use crate::cli::Cli;
 use crate::progbar::Progbar;
 
-const REFRESH_DELAY: time::Duration = time::Duration::from_millis(150);
+const REFRESH_DELAY: time::Duration = time::Duration::from_millis(250);
 
 pub fn buildcmdline(cli: &Cli) -> String {
     if cli.shell {
@@ -66,7 +66,8 @@ pub enum StreamItem {
 pub fn print_backlog(pb: &mut Progbar, cmdline: &str, lines: &[String]) {
     pb.hide();
     println!();
-    println!("$ {} # at {}", cmdline, chrono::offset::Local::now());
+    println!("=> changed at {}", chrono::offset::Local::now());
+    println!("+ {}", cmdline);
     for l in lines {
         println!("{}", l);
     }
