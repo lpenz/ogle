@@ -145,12 +145,29 @@ pub async fn ticker(
 
 pub async fn wait(
     child: tokio::process::Child,
+    mut tx: tokio::sync::mpsc::Sender<StreamItem>,
     done_guard: &Arc<Mutex<bool>>,
 ) -> Result<ExitStatus> {
-    let status = child.await;
+    let status_res = child.await;
+    let statusline_opt = if let Ok(sts) = status_res {
+        if let Some(code) = sts.code() {
+            if code == 0 {
+                None
+            } else {
+                Some(format!("=> exit code {}", code))
+            }
+        } else {
+            Some("=> error getting exit code".to_string())
+        }
+    } else {
+        Some("=> error getting exit status".to_string())
+    };
+    if let Some(statusline) = statusline_opt {
+        tx.send(StreamItem::Line(statusline)).await?;
+    }
     let mut done = done_guard.lock().unwrap();
     *done = true;
-    status.map_err(|e| anyhow::anyhow!(e))
+    status_res.map_err(|e| anyhow::anyhow!(e))
 }
 
 pub async fn run_once(cli: &Cli, last_rundata: RunData, pb: &mut Progbar) -> Result<RunData> {
@@ -159,8 +176,12 @@ pub async fn run_once(cli: &Cli, last_rundata: RunData, pb: &mut Progbar) -> Res
     let start = time::Instant::now();
     let stdout_stream = std_to_stream("stdout", child.stdout.take())?;
     let stderr_stream = std_to_stream("stderr", child.stderr.take())?;
-    let (tx, rx) = mpsc::channel(2);
-    let stream = stdout_stream.merge(stderr_stream).merge(rx);
+    let (tick_tx, tick_rx) = mpsc::channel(2);
+    let (status_tx, status_rx) = mpsc::channel(2);
+    let stream = stdout_stream
+        .merge(stderr_stream)
+        .merge(tick_rx)
+        .merge(status_rx);
     let cmdline = buildcmdline(cli);
     let task = stream_task(
         &cmdline,
@@ -172,8 +193,8 @@ pub async fn run_once(cli: &Cli, last_rundata: RunData, pb: &mut Progbar) -> Res
     // We use done_guard mutex to protect stdou/err
     #[allow(clippy::mutex_atomic)]
     let done_guard = Arc::new(Mutex::new(false));
-    let ticker = ticker(tx, &done_guard);
-    let wait = wait(child, &done_guard);
+    let ticker = ticker(tick_tx, &done_guard);
+    let wait = wait(child, status_tx, &done_guard);
     let (status, vecboth, _) = tokio::join!(wait, task, ticker);
     Ok(RunData {
         status: Some(status?),
