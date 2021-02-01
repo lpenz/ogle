@@ -56,6 +56,20 @@ impl Progbar {
         self.show();
     }
 
+    fn bar_size(overhead: usize, dur: u128, refresh: u128) -> usize {
+        let max_width = if let Some((w, _)) = term_size::dimensions() {
+            w
+        } else {
+            80
+        };
+        let bar_size = (dur / refresh) as usize;
+        if bar_size + overhead > max_width {
+            max_width - overhead
+        } else {
+            bar_size
+        }
+    }
+
     fn create_indicatif_pb(
         mode: Mode,
         duration: time::Duration,
@@ -65,22 +79,17 @@ impl Progbar {
         let dur = duration.as_millis();
         let refresh = refresh_delay.as_millis();
         let fmt = match mode {
-            Mode::Sleeping => format!("=> sleeping{{bar:{}}}", dur / refresh),
+            Mode::Sleeping => {
+                let header = "=> sleeping";
+                let bar_size = Progbar::bar_size(header.len() + 1, dur, refresh);
+                format!("{}{{bar:{}}}", header, bar_size)
+            }
             Mode::Running => {
                 if dur <= 3000 {
                     String::from("=> running [{spinner}]")
                 } else {
-                    let max_width = if let Some((w, _)) = term_size::dimensions() {
-                        w
-                    } else {
-                        80
-                    };
-                    let mut bar_size = (dur / refresh) as usize;
                     let header = "=> running ";
-                    let overhead = header.len() + 5;
-                    if bar_size + overhead > max_width {
-                        bar_size = max_width - overhead;
-                    }
+                    let bar_size = Progbar::bar_size(header.len() + 5, dur, refresh);
                     format!("{}[{{bar:{}}}] {{spinner}}", header, bar_size)
                 }
             }
