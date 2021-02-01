@@ -4,7 +4,6 @@
 
 use std::env;
 use std::ffi::OsString;
-use std::process;
 use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
@@ -27,10 +26,7 @@ pub struct Cli {
 
 impl Cli {
     pub fn from_args() -> Cli {
-        Cli::from_iter_safe(&mut env::args_os()).unwrap_or_else(|e| {
-            eprintln!("{}", e.message);
-            process::exit(1);
-        })
+        Cli::from_iter_safe(&mut env::args_os()).unwrap_or_else(|e| e.exit())
     }
 
     pub fn from_iter_safe<I>(iter: I) -> Result<Cli, clap::Error>
