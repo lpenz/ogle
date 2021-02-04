@@ -9,9 +9,11 @@ use std::sync::{Arc, Mutex};
 use tokio::io;
 use tokio::io::AsyncBufReadExt;
 use tokio::process::Command;
-use tokio::stream::StreamExt;
 use tokio::sync::mpsc;
 use tokio::time;
+use tokio_stream::wrappers::LinesStream;
+use tokio_stream::wrappers::ReceiverStream;
+use tokio_stream::StreamExt;
 
 use crate::cli::Cli;
 use crate::progbar::Progbar;
@@ -122,18 +124,18 @@ pub fn std_to_stream<T: tokio::io::AsyncRead>(
 ) -> Result<impl StreamExt<Item = StreamItem>> {
     let std = stdopt.ok_or_else(|| anyhow::anyhow!("error taking {:?}", name))?;
     let br = io::BufReader::new(std);
-    Ok(br.lines().map(|r| match r {
+    Ok(LinesStream::new(br.lines()).map(|r| match r {
         Ok(l) => StreamItem::Line(l),
         Err(e) => StreamItem::Err(anyhow::Error::from(e)),
     }))
 }
 
 pub async fn ticker(
-    mut tx: tokio::sync::mpsc::Sender<StreamItem>,
+    tx: tokio::sync::mpsc::Sender<StreamItem>,
     done_guard: &Arc<Mutex<bool>>,
 ) -> Result<()> {
     loop {
-        time::delay_for(REFRESH_DELAY).await;
+        time::sleep(REFRESH_DELAY).await;
         tx.send(StreamItem::Tick).await?;
         let done = done_guard.lock().unwrap();
         if *done {
@@ -144,11 +146,11 @@ pub async fn ticker(
 }
 
 pub async fn wait(
-    child: tokio::process::Child,
-    mut tx: tokio::sync::mpsc::Sender<StreamItem>,
+    mut child: tokio::process::Child,
+    tx: tokio::sync::mpsc::Sender<StreamItem>,
     done_guard: &Arc<Mutex<bool>>,
 ) -> Result<ExitStatus> {
-    let status_res = child.await;
+    let status_res = child.wait().await;
     let statusline_opt = if let Ok(sts) = status_res {
         if let Some(code) = sts.code() {
             if code == 0 {
@@ -180,8 +182,8 @@ pub async fn run_once(cli: &Cli, last_rundata: RunData, pb: &mut Progbar) -> Res
     let (status_tx, status_rx) = mpsc::channel(2);
     let stream = stdout_stream
         .merge(stderr_stream)
-        .merge(tick_rx)
-        .merge(status_rx);
+        .merge(ReceiverStream::new(tick_rx))
+        .merge(ReceiverStream::new(status_rx));
     let cmdline = buildcmdline(cli);
     let task = stream_task(
         &cmdline,
@@ -220,7 +222,7 @@ pub async fn run_loop(cli: &Cli) -> Result<()> {
         let end = time::Instant::now() + cli_period;
         while time::Instant::now() < end {
             pb.refresh();
-            time::delay_for(REFRESH_DELAY).await;
+            time::sleep(REFRESH_DELAY).await;
         }
     }
 }
