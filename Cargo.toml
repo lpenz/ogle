@@ -10,11 +10,11 @@ homepage = "https://github.com/lpenz/ogle"
 repository = "https://github.com/lpenz/ogle"
 
 [dependencies]
-structopt = "0.3.17"
-chrono = "0.4.15"
-clap = { version = "2.33", default-features = false }
-anyhow = "1.0.33"
-tokio = { version = "1.1.1", features = ["macros", "io-util", "rt", "rt-multi-thread", "process","time", "sync"] }
-tokio-stream = { version = "0.1.2", features = ["io-util"] }
-indicatif = "0.15"
-term_size = "0.3.2"
+structopt = "0"
+chrono = "0"
+clap = { version = "2", default-features = false }
+anyhow = "1"
+tokio = { version = "1", features = ["macros", "io-util", "rt", "rt-multi-thread", "process","time", "sync"] }
+tokio-stream = { version = "0", features = ["io-util"] }
+indicatif = "0"
+term_size = "0"
