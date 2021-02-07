@@ -5,7 +5,6 @@
 use anyhow::Result;
 use std::process::ExitStatus;
 use std::process::Stdio;
-use std::sync::{Arc, Mutex};
 use tokio::io;
 use tokio::io::AsyncBufReadExt;
 use tokio::process::Command;
@@ -16,7 +15,9 @@ use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
 
 use crate::cli::Cli;
+use crate::core::StreamItem;
 use crate::progbar::Progbar;
+use crate::ticker::Ticker;
 
 const REFRESH_DELAY: time::Duration = time::Duration::from_millis(250);
 
@@ -56,13 +57,6 @@ impl RunData {
     pub fn success(&self) -> bool {
         self.status.map_or(false, |s| s.success())
     }
-}
-
-#[derive(Debug)]
-pub enum StreamItem {
-    Line(String),
-    Err(anyhow::Error),
-    Tick,
 }
 
 pub fn print_backlog(pb: &mut Progbar, cmdline: &str, lines: &[String]) {
@@ -130,25 +124,10 @@ pub fn std_to_stream<T: tokio::io::AsyncRead>(
     }))
 }
 
-pub async fn ticker(
-    tx: tokio::sync::mpsc::Sender<StreamItem>,
-    done_guard: &Arc<Mutex<bool>>,
-) -> Result<()> {
-    loop {
-        time::sleep(REFRESH_DELAY).await;
-        tx.send(StreamItem::Tick).await?;
-        let done = done_guard.lock().unwrap();
-        if *done {
-            break;
-        }
-    }
-    Ok(())
-}
-
 pub async fn wait(
     mut child: tokio::process::Child,
     tx: tokio::sync::mpsc::Sender<StreamItem>,
-    done_guard: &Arc<Mutex<bool>>,
+    ticker: &Ticker,
 ) -> Result<ExitStatus> {
     let status_res = child.wait().await;
     let statusline_opt = if let Ok(sts) = status_res {
@@ -167,8 +146,7 @@ pub async fn wait(
     if let Some(statusline) = statusline_opt {
         tx.send(StreamItem::Line(statusline)).await?;
     }
-    let mut done = done_guard.lock().unwrap();
-    *done = true;
+    ticker.close();
     status_res.map_err(|e| anyhow::anyhow!(e))
 }
 
@@ -178,11 +156,15 @@ pub async fn run_once(cli: &Cli, last_rundata: RunData, pb: &mut Progbar) -> Res
     let start = time::Instant::now();
     let stdout_stream = std_to_stream("stdout", child.stdout.take())?;
     let stderr_stream = std_to_stream("stderr", child.stderr.take())?;
-    let (tick_tx, tick_rx) = mpsc::channel(2);
     let (status_tx, status_rx) = mpsc::channel(2);
+    let ticker = Ticker::default();
     let stream = stdout_stream
         .merge(stderr_stream)
-        .merge(ReceiverStream::new(tick_rx))
+        .merge(
+            ticker
+                .create_stream(REFRESH_DELAY)
+                .map(|_| StreamItem::Tick),
+        )
         .merge(ReceiverStream::new(status_rx));
     let cmdline = buildcmdline(cli);
     let task = stream_task(
@@ -192,12 +174,8 @@ pub async fn run_once(cli: &Cli, last_rundata: RunData, pb: &mut Progbar) -> Res
         stream,
         pb,
     );
-    // We use done_guard mutex to protect stdou/err
-    #[allow(clippy::mutex_atomic)]
-    let done_guard = Arc::new(Mutex::new(false));
-    let ticker = ticker(tick_tx, &done_guard);
-    let wait = wait(child, status_tx, &done_guard);
-    let (status, vecboth, _) = tokio::join!(wait, task, ticker);
+    let wait = wait(child, status_tx, &ticker);
+    let (status, vecboth) = tokio::join!(wait, task);
     Ok(RunData {
         status: Some(status?),
         output: vecboth?,
