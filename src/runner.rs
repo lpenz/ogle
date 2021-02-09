@@ -5,17 +5,12 @@
 use anyhow::Result;
 use std::process::ExitStatus;
 use std::process::Stdio;
-use tokio::io;
-use tokio::io::AsyncBufReadExt;
 use tokio::process::Command;
-use tokio::sync::mpsc;
 use tokio::time;
-use tokio_stream::wrappers::LinesStream;
-use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
 
+use crate::childstream;
 use crate::cli::Cli;
-use crate::core::StreamItem;
 use crate::progbar::Progbar;
 use crate::ticker::Ticker;
 
@@ -59,6 +54,13 @@ impl RunData {
     }
 }
 
+#[derive(Debug)]
+pub enum StreamItem {
+    Line(String),
+    Done(ExitStatus),
+    Tick,
+}
+
 pub fn print_backlog(pb: &mut Progbar, cmdline: &str, lines: &[String]) -> Result<()> {
     pb.hide()?;
     println!();
@@ -77,7 +79,8 @@ pub async fn stream_task<T>(
     last_period: time::Duration,
     mut stream: T,
     pb: &mut Progbar,
-) -> Result<Vec<String>>
+    ticker: &Ticker,
+) -> Result<(ExitStatus, Vec<String>)>
 where
     T: StreamExt<Item = StreamItem> + std::marker::Unpin + Send + 'static,
 {
@@ -86,87 +89,64 @@ where
     let mut nlines = 0;
     pb.set_running(last_period);
     while let Some(item) = stream.next().await {
-        match item {
-            StreamItem::Line(line) => {
-                lines.push(line);
-                nlines += 1;
-                if different {
-                    pb.hide()?;
-                    println!("{}", lines[nlines - 1]);
-                    pb.show()?;
-                } else if last_lines.len() < nlines || lines[nlines - 1] != last_lines[nlines - 1] {
-                    // Print everything so far
-                    print_backlog(pb, cmdline, &lines)?;
-                    different = true;
-                }
-            }
+        let (stsopt, lineopt) = match item {
+            StreamItem::Line(line) => (None, Some(line)),
             StreamItem::Tick => {
                 pb.refresh()?;
+                (None, None)
             }
-            _ => { /* ignore read errors */ }
+            StreamItem::Done(sts) => (
+                Some(sts),
+                if let Some(code) = sts.code() {
+                    if code == 0 {
+                        None
+                    } else {
+                        Some(format!("=> exit code {}", code))
+                    }
+                } else {
+                    Some("=> error getting exit code".to_string())
+                },
+            ),
+        };
+        if let Some(line) = lineopt {
+            lines.push(line);
+            nlines += 1;
+            if different {
+                pb.hide()?;
+                println!("{}", lines[nlines - 1]);
+                pb.show()?;
+            } else if last_lines.len() < nlines || lines[nlines - 1] != last_lines[nlines - 1] {
+                // Print everything so far
+                print_backlog(pb, cmdline, &lines)?;
+                different = true;
+            }
+        }
+        if let Some(sts) = stsopt {
+            /* Process is done, check if we got less lines: */
+            if !different && last_lines.len() > nlines {
+                print_backlog(pb, cmdline, &lines)?;
+            }
+            ticker.close();
+            return Ok((sts, lines));
         }
     }
-    /* Process is done, check if we got less lines: */
-    if !different && last_lines.len() > nlines {
-        print_backlog(pb, cmdline, &lines)?;
-    }
-    Ok(lines)
-}
-
-pub fn std_to_stream<T: tokio::io::AsyncRead>(
-    name: &str,
-    stdopt: Option<T>,
-) -> Result<impl StreamExt<Item = StreamItem>> {
-    let std = stdopt.ok_or_else(|| anyhow::anyhow!("error taking {:?}", name))?;
-    let br = io::BufReader::new(std);
-    Ok(LinesStream::new(br.lines()).map(|r| match r {
-        Ok(l) => StreamItem::Line(l),
-        Err(e) => StreamItem::Err(anyhow::Error::from(e)),
-    }))
-}
-
-pub async fn wait(
-    mut child: tokio::process::Child,
-    tx: tokio::sync::mpsc::Sender<StreamItem>,
-    ticker: &Ticker,
-) -> Result<ExitStatus> {
-    let status_res = child.wait().await;
-    let statusline_opt = if let Ok(sts) = status_res {
-        if let Some(code) = sts.code() {
-            if code == 0 {
-                None
-            } else {
-                Some(format!("=> exit code {}", code))
-            }
-        } else {
-            Some("=> error getting exit code".to_string())
-        }
-    } else {
-        Some("=> error getting exit status".to_string())
-    };
-    if let Some(statusline) = statusline_opt {
-        tx.send(StreamItem::Line(statusline)).await?;
-    }
-    ticker.close();
-    status_res.map_err(|e| anyhow::anyhow!(e))
+    panic!("stream ended before process");
 }
 
 pub async fn run_once(cli: &Cli, last_rundata: RunData, pb: &mut Progbar) -> Result<RunData> {
-    let mut cmd = buildcmd(&cli);
-    let mut child = cmd.spawn()?;
+    let cmd = buildcmd(&cli);
     let start = time::Instant::now();
-    let stdout_stream = std_to_stream("stdout", child.stdout.take())?;
-    let stderr_stream = std_to_stream("stderr", child.stderr.take())?;
-    let (status_tx, status_rx) = mpsc::channel(2);
+    let childstream = childstream::ChildStream::from_command(cmd)?.map(|i| match i {
+        childstream::Item::Stdout(l) => StreamItem::Line(l),
+        childstream::Item::Stderr(l) => StreamItem::Line(l),
+        childstream::Item::Done(s) => StreamItem::Done(s),
+    });
     let ticker = Ticker::default();
-    let stream = stdout_stream
-        .merge(stderr_stream)
-        .merge(
-            ticker
-                .create_stream(REFRESH_DELAY)
-                .map(|_| StreamItem::Tick),
-        )
-        .merge(ReceiverStream::new(status_rx));
+    let stream = childstream.merge(
+        ticker
+            .create_stream(REFRESH_DELAY)
+            .map(|_| StreamItem::Tick),
+    );
     let cmdline = buildcmdline(cli);
     let task = stream_task(
         &cmdline,
@@ -174,12 +154,12 @@ pub async fn run_once(cli: &Cli, last_rundata: RunData, pb: &mut Progbar) -> Res
         last_rundata.duration,
         stream,
         pb,
+        &ticker,
     );
-    let wait = wait(child, status_tx, &ticker);
-    let (status, vecboth) = tokio::join!(wait, task);
+    let (status, vecboth) = task.await?;
     Ok(RunData {
-        status: Some(status?),
-        output: vecboth?,
+        status: Some(status),
+        output: vecboth,
         duration: time::Instant::now() - start,
     })
 }

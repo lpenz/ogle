@@ -18,6 +18,7 @@ anyhow = "1"
 tokio = { version = "1", features = ["macros", "io-util", "rt", "rt-multi-thread", "process","time", "sync"] }
 tokio-stream = { version = "0", features = ["io-util"] }
 console = "0"
+pin-project-lite = "0"
 
 [build-dependencies]
 anyhow = "1"

@@ -228,6 +228,7 @@ dependencies = [
  "clap",
  "console",
  "man",
+ "pin-project-lite",
  "structopt",
  "tokio",
  "tokio-stream",
