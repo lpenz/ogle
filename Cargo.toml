@@ -8,6 +8,7 @@ license = "MIT"
 readme = "README.md"
 homepage = "https://github.com/lpenz/ogle"
 repository = "https://github.com/lpenz/ogle"
+build = "build.rs"
 
 [dependencies]
 structopt = "0"
@@ -18,3 +19,7 @@ tokio = { version = "1", features = ["macros", "io-util", "rt", "rt-multi-thread
 tokio-stream = { version = "0", features = ["io-util"] }
 indicatif = "0"
 term_size = "0"
+
+[build-dependencies]
+anyhow = "1"
+man = "0"
