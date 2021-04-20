@@ -13,7 +13,6 @@ pub enum Mode {
 pub struct Progbar {
     pb: indicatif::ProgressBar,
     start: time::Instant,
-    hidden: bool,
     duration: time::Duration,
     refresh_delay: time::Duration,
     mode: Mode,
@@ -25,7 +24,6 @@ impl Default for Progbar {
         Progbar {
             pb: indicatif::ProgressBar::hidden(),
             start: time::Instant::now(),
-            hidden: true,
             duration: time::Duration::from_secs(0),
             refresh_delay: time::Duration::from_millis(250),
             mode: Mode::Running,
@@ -115,14 +113,12 @@ impl Progbar {
     pub fn hide(&mut self) {
         self.pb.finish_and_clear();
         self.pb = Progbar::create_indicatif_pb(self.mode, self.duration, self.refresh_delay);
-        self.hidden = true;
     }
 
     pub fn show(&mut self) {
         self.pb = Progbar::create_indicatif_pb(self.mode, self.duration, self.refresh_delay);
         self.pb
             .set_draw_target(indicatif::ProgressDrawTarget::stderr());
-        self.hidden = false;
         self.refresh();
     }
 
