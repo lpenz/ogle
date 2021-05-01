@@ -3,7 +3,7 @@ name: cargo-deb
 on:
   push:
     branches:
-      - master
+      - main
     tags:
       - '[0-9]*'
 jobs:
