@@ -59,15 +59,16 @@ impl RunData {
     }
 }
 
-pub fn print_backlog(pb: &mut Progbar, cmdline: &str, lines: &[String]) {
-    pb.hide();
+pub fn print_backlog(pb: &mut Progbar, cmdline: &str, lines: &[String]) -> Result<()> {
+    pb.hide()?;
     println!();
     println!("=> changed at {}", chrono::offset::Local::now());
     println!("+ {}", cmdline);
     for l in lines {
         println!("{}", l);
     }
-    pb.show();
+    pb.show()?;
+    Ok(())
 }
 
 pub async fn stream_task<T>(
@@ -90,24 +91,24 @@ where
                 lines.push(line);
                 nlines += 1;
                 if different {
-                    pb.hide();
+                    pb.hide()?;
                     println!("{}", lines[nlines - 1]);
-                    pb.show();
+                    pb.show()?;
                 } else if last_lines.len() < nlines || lines[nlines - 1] != last_lines[nlines - 1] {
                     // Print everything so far
-                    print_backlog(pb, cmdline, &lines);
+                    print_backlog(pb, cmdline, &lines)?;
                     different = true;
                 }
             }
             StreamItem::Tick => {
-                pb.refresh();
+                pb.refresh()?;
             }
             _ => { /* ignore read errors */ }
         }
     }
     /* Process is done, check if we got less lines: */
     if !different && last_lines.len() > nlines {
-        print_backlog(pb, cmdline, &lines);
+        print_backlog(pb, cmdline, &lines)?;
     }
     Ok(lines)
 }
@@ -199,7 +200,7 @@ pub async fn run_loop(cli: &Cli) -> Result<()> {
         pb.set_sleep(cli_period);
         let end = time::Instant::now() + cli_period;
         while time::Instant::now() < end {
-            pb.refresh();
+            pb.refresh()?;
             time::sleep(REFRESH_DELAY).await;
         }
     }

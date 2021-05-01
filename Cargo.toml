@@ -17,8 +17,7 @@ clap = { version = "2", default-features = false }
 anyhow = "1"
 tokio = { version = "1", features = ["macros", "io-util", "rt", "rt-multi-thread", "process","time", "sync"] }
 tokio-stream = { version = "0", features = ["io-util"] }
-indicatif = "0"
-term_size = "0"
+console = "0"
 
 [build-dependencies]
 anyhow = "1"
