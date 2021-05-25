@@ -3,16 +3,17 @@
 // file 'LICENSE', which is part of this source code package.
 
 use anyhow::Result;
+use std::convert::TryFrom;
 use std::process::ExitStatus;
 use std::process::Stdio;
 use tokio::process::Command;
 use tokio::time;
+use tokio_stream::wrappers::IntervalStream;
 use tokio_stream::StreamExt;
 
 use crate::childstream;
 use crate::cli::Cli;
 use crate::progbar::Progbar;
-use crate::ticker::Ticker;
 
 const REFRESH_DELAY: time::Duration = time::Duration::from_millis(250);
 
@@ -61,6 +62,22 @@ pub enum StreamItem {
     Tick,
 }
 
+impl From<childstream::Item> for StreamItem {
+    fn from(item: childstream::Item) -> Self {
+        match item {
+            childstream::Item::Stdout(l) => StreamItem::Line(l),
+            childstream::Item::Stderr(l) => StreamItem::Line(l),
+            childstream::Item::Done(s) => StreamItem::Done(s),
+        }
+    }
+}
+
+impl From<time::Instant> for StreamItem {
+    fn from(_: time::Instant) -> Self {
+        StreamItem::Tick
+    }
+}
+
 pub fn print_backlog(pb: &mut Progbar, cmdline: &str, lines: &[String]) -> Result<()> {
     pb.hide()?;
     println!();
@@ -79,7 +96,6 @@ pub async fn stream_task<T>(
     last_period: time::Duration,
     mut stream: T,
     pb: &mut Progbar,
-    ticker: &Ticker,
 ) -> Result<(ExitStatus, Vec<String>)>
 where
     T: StreamExt<Item = StreamItem> + std::marker::Unpin + Send + 'static,
@@ -126,7 +142,6 @@ where
             if !different && last_lines.len() > nlines {
                 print_backlog(pb, cmdline, &lines)?;
             }
-            ticker.close();
             return Ok((sts, lines));
         }
     }
@@ -136,17 +151,9 @@ where
 pub async fn run_once(cli: &Cli, last_rundata: RunData, pb: &mut Progbar) -> Result<RunData> {
     let cmd = buildcmd(&cli);
     let start = time::Instant::now();
-    let childstream = childstream::ChildStream::from_command(cmd)?.map(|i| match i {
-        childstream::Item::Stdout(l) => StreamItem::Line(l),
-        childstream::Item::Stderr(l) => StreamItem::Line(l),
-        childstream::Item::Done(s) => StreamItem::Done(s),
-    });
-    let ticker = Ticker::default();
-    let stream = childstream.merge(
-        ticker
-            .create_stream(REFRESH_DELAY)
-            .map(|_| StreamItem::Tick),
-    );
+    let childstream = childstream::ChildStream::try_from(cmd)?.map(StreamItem::from);
+    let ticker = IntervalStream::new(time::interval(REFRESH_DELAY));
+    let stream = childstream.merge(ticker.map(StreamItem::from));
     let cmdline = buildcmdline(cli);
     let task = stream_task(
         &cmdline,
@@ -154,7 +161,6 @@ pub async fn run_once(cli: &Cli, last_rundata: RunData, pb: &mut Progbar) -> Res
         last_rundata.duration,
         stream,
         pb,
-        &ticker,
     );
     let (status, vecboth) = task.await?;
     Ok(RunData {

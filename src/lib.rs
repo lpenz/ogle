@@ -6,4 +6,3 @@ pub mod childstream;
 pub mod cli;
 pub mod progbar;
 pub mod runner;
-pub mod ticker;

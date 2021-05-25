@@ -5,6 +5,7 @@
 use ogle::childstream::*;
 
 use anyhow::Result;
+use std::convert::TryFrom;
 use std::process::Stdio;
 use tokio::process::Command;
 use tokio_stream::StreamExt;
@@ -16,7 +17,7 @@ async fn basicout() -> Result<()> {
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
     let child = cmd.spawn()?;
-    let mut childstream = ChildStream::from_child(child)?;
+    let mut childstream = ChildStream::from(child);
     assert_eq!(
         childstream.next().await,
         Some(Item::Stdout("test1".to_owned()))
@@ -39,7 +40,7 @@ async fn basicout() -> Result<()> {
 async fn basicerr() -> Result<()> {
     let mut cmd = Command::new("/bin/sh");
     cmd.args(&["-c", "printf 'test1\ntest2' >&2"]);
-    let mut childstream = ChildStream::from_command(cmd)?;
+    let mut childstream = ChildStream::try_from(cmd)?;
     assert_eq!(
         childstream.next().await,
         Some(Item::Stderr("test1".to_owned()))

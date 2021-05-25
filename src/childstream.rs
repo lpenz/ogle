@@ -2,8 +2,10 @@
 // This file is subject to the terms and conditions defined in
 // file 'LICENSE', which is part of this source code package.
 
-use anyhow::Result;
 use pin_project_lite::pin_project;
+use std::convert;
+use std::fmt;
+use std::io;
 use std::pin::Pin;
 use std::process::ExitStatus;
 use std::process::Stdio;
@@ -17,6 +19,23 @@ use tokio::process::{ChildStderr, ChildStdout};
 use tokio_stream::wrappers::LinesStream;
 use tokio_stream::Stream;
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum Item {
+    Stdout(String),
+    Stderr(String),
+    Done(ExitStatus),
+}
+
+impl fmt::Display for Item {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Item::Stdout(s) => fmt::Display::fmt(&s, f),
+            Item::Stderr(s) => fmt::Display::fmt(&s, f),
+            _ => Ok(()),
+        }
+    }
+}
+
 pin_project! {
 #[derive(Debug)]
 pub struct ChildStream {
@@ -26,15 +45,8 @@ pub struct ChildStream {
 }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum Item {
-    Stdout(String),
-    Stderr(String),
-    Done(ExitStatus),
-}
-
-impl ChildStream {
-    pub fn from_child(mut child: Child) -> Result<ChildStream> {
+impl convert::From<Child> for ChildStream {
+    fn from(mut child: Child) -> ChildStream {
         let stdout = child
             .stdout
             .take()
@@ -43,18 +55,21 @@ impl ChildStream {
             .stderr
             .take()
             .map(|s| LinesStream::new(BufReader::new(s).lines()));
-        Ok(ChildStream {
+        Self {
             child: Some(child),
             stdout,
             stderr,
-        })
+        }
     }
+}
 
-    pub fn from_command(mut command: Command) -> Result<ChildStream> {
+impl convert::TryFrom<Command> for ChildStream {
+    type Error = io::Error;
+    fn try_from(mut command: Command) -> io::Result<ChildStream> {
         command.stdout(Stdio::piped());
         command.stderr(Stdio::piped());
         let child = command.spawn()?;
-        ChildStream::from_child(child)
+        Ok(Self::from(child))
     }
 }
 
