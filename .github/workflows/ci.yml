@@ -2,6 +2,11 @@
 name: CI
 on: [ push, pull_request ]
 jobs:
+  omnilint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: docker://lpenz/omnilint:v0.2
   # Rust actions from:
   # https://github.com/actions-rs/meta/blob/master/recipes/quickstart.md
   cargo-check:
@@ -22,21 +27,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1.0.7
-        with:
-          toolchain: nightly
-          override: true
-      - uses: actions-rs/cargo@v1.0.3
-        with:
-          command: test
-          args: --all-features --no-fail-fast
-        env:
-          CARGO_INCREMENTAL: '0'
-          RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
-          RUSTDOCFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
       - id: coverage
-        uses: actions-rs/grcov@v0.1.5
-      - uses: coverallsapp/github-action@master
+        uses: docker://lpenz/ghaction-rust-coverage:0.2
+      - uses: coverallsapp/github-action@v1.1.2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path-to-lcov: ${{ steps.coverage.outputs.report }}
@@ -68,22 +61,13 @@ jobs:
         with:
           command: clippy
           args: -- -D warnings
-  omnilint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: docker://lpenz/omnilint:v0.2
   cargo-deb:
     needs: [ cargo-check, test-coverage, rustfmt, clippy, omnilint ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-      - name: Get "git describe" information for deb version
-        id: gitinfo
-        run: |
-          printf '::set-output name=description::%s' $(git describe --tags)
+      - id: version
+        uses: docker://lpenz/ghaction-version-gen:0.4
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -96,9 +80,10 @@ jobs:
       - name: Copy manual
         run: find target -name ogle.1 -exec cp -vt . {} +
       - run: cargo install cargo-deb
-      - run: cargo deb --deb-version '${{steps.gitinfo.outputs.description}}'
+      - run: cargo deb --deb-version '${{ steps.version.outputs.version_commit }}'
+        if: steps.version.outputs.version_commit != ''
       - uses: docker://lpenz/ghaction-packagecloud:v0.3
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: steps.version.outputs.version_commit != ''
         with:
           repository: debian/debian/buster
         env:
