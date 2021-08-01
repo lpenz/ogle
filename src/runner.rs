@@ -149,7 +149,7 @@ where
 }
 
 pub async fn run_once(cli: &Cli, last_rundata: RunData, pb: &mut Progbar) -> Result<RunData> {
-    let cmd = buildcmd(&cli);
+    let cmd = buildcmd(cli);
     let start = time::Instant::now();
     let childstream = childstream::ChildStream::try_from(cmd)?.map(StreamItem::from);
     let ticker = IntervalStream::new(time::interval(REFRESH_DELAY));
