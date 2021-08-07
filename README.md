@@ -7,11 +7,18 @@
 
 **ogle** is a program that runs the given command-line periodically,
 showing the output only when it is different than the last.
-It allows you to do all kinds of monitoring right from the command
-line.
 
-It's a more flexible and modern take on *[watch (1)]*
+The simplest way to show most of the features of *ogle* is by asking
+it to run `date; sleep` in a shell, with a waiting period of 3s:
 
+![demo](demos/demo-sleep.gif)
+
+Lines that were written by ogle all start with `=>`. On the first
+execution, ogle shows a spinner while the command is running. On the
+next executions, ogle shows a progress bar, where the total
+corresponds to the duration of the previous execution. The sleep time
+is also shown, as a countdown. If the command returns an error to the
+shell, the error value is displayed.
 
 [watch (1)]: https://linux.die.net/man/1/watch
 
