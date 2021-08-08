@@ -88,6 +88,14 @@ jobs:
           repository: debian/debian/buster
         env:
           PACKAGECLOUD_TOKEN: ${{ secrets.PACKAGECLOUD_TOKEN }}
+      - uses: "marvinpinto/action-automatic-releases@v1.2.1"
+        if: steps.version.outputs.version_tagged != ''
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          prerelease: false
+          files: |
+            target/debian/*.deb
+            target/release/ogle
   publish-crate:
     needs: [ omnilint, cargo-check, test-coverage, rustfmt, clippy ]
     runs-on: ubuntu-latest
