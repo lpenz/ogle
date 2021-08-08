@@ -20,5 +20,21 @@ corresponds to the duration of the previous execution. The sleep time
 is also shown, as a countdown. If the command returns an error to the
 shell, the error value is displayed.
 
+
+## Installation
+
+If you're a **Rust programmer**, ogle can be installed with `cargo`:
+
+```
+$ cargo install ogle
+```
+
+If you're a **Debian** user, ogle is available in
+[packagecloud](https://packagecloud.io/app/lpenz/debian/search?q=ogle). Follow
+these
+[instruction](https://packagecloud.io/lpenz/debian/install#manual) to
+use the package repository.
+
+
 [watch (1)]: https://linux.die.net/man/1/watch
 
