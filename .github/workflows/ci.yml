@@ -114,7 +114,7 @@ jobs:
       - uses: docker://lpenz/ghaction-packagecloud:v0.3
         if: steps.version.outputs.version_tagged != ''
         with:
-          repository: debian/debian/buster
+          repository: debian/debian/bullseye
         env:
           PACKAGECLOUD_TOKEN: ${{ secrets.PACKAGECLOUD_TOKEN }}
       - uses: "marvinpinto/action-automatic-releases@v1.2.1"
