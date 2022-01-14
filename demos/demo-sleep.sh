@@ -1,5 +1,6 @@
 #!/bin/bash
 
+CARGO_TARGET_DIR=${CARGO_TARGET_DIR-$PWD/target}
 function typeogle {
     cmd="ogle $1"
     printf "$ "
@@ -12,12 +13,13 @@ function typeogle {
 }
 
 typeogle '-p 3 -c "date; sleep 3"'
-ogle -p 3 -c 'date; sleep 3' &
-pid_ogle="$!"
+(
+"$CARGO_TARGET_DIR/debug/ogle" -p 3 -c 'date; sleep 3' &
+pidogle="$!"
+trap 'kill $pidogle; wait $pidogle' EXIT
 
 sleep 16.5
-
-kill "$pid_ogle"
+)
 
 printf '^C\n$ '
 sleep 1
