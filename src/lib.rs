@@ -2,7 +2,6 @@
 // This file is subject to the terms and conditions defined in
 // file 'LICENSE', which is part of this source code package.
 
-pub mod childstream;
 pub mod cli;
 pub mod progbar;
 pub mod runner;

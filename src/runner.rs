@@ -8,10 +8,10 @@ use std::process::ExitStatus;
 use std::process::Stdio;
 use tokio::process::Command;
 use tokio::time;
+use tokio_process_stream as tps;
 use tokio_stream::wrappers::IntervalStream;
 use tokio_stream::StreamExt;
 
-use crate::childstream;
 use crate::cli::Cli;
 use crate::progbar::Progbar;
 
@@ -62,12 +62,12 @@ pub enum StreamItem {
     Tick,
 }
 
-impl From<childstream::Item> for StreamItem {
-    fn from(item: childstream::Item) -> Self {
+impl From<tps::Item> for StreamItem {
+    fn from(item: tps::Item) -> Self {
         match item {
-            childstream::Item::Stdout(l) => StreamItem::Line(l),
-            childstream::Item::Stderr(l) => StreamItem::Line(l),
-            childstream::Item::Done(s) => StreamItem::Done(s),
+            tps::Item::Stdout(l) => StreamItem::Line(l),
+            tps::Item::Stderr(l) => StreamItem::Line(l),
+            tps::Item::Done(s) => StreamItem::Done(s),
         }
     }
 }
@@ -151,9 +151,9 @@ where
 pub async fn run_once(cli: &Cli, last_rundata: RunData, pb: &mut Progbar) -> Result<RunData> {
     let cmd = buildcmd(cli);
     let start = time::Instant::now();
-    let childstream = childstream::ChildStream::try_from(cmd)?.map(StreamItem::from);
+    let procstream = tps::ProcessStream::try_from(cmd)?.map(StreamItem::from);
     let ticker = IntervalStream::new(time::interval(REFRESH_DELAY));
-    let stream = childstream.merge(ticker.map(StreamItem::from));
+    let stream = procstream.merge(ticker.map(StreamItem::from));
     let cmdline = buildcmdline(cli);
     let task = stream_task(
         &cmdline,

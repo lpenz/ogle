@@ -233,6 +233,7 @@ dependencies = [
  "pin-project-lite",
  "structopt",
  "tokio",
+ "tokio-process-stream",
  "tokio-stream",
 ]
 
@@ -419,6 +420,18 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "tokio-process-stream"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5dc5369954dbf01c52e60c1cc62509cb3677310430cdfadfbbba3aee55a7f611"
+dependencies = [
+ "anyhow",
+ "pin-project-lite",
+ "tokio",
+ "tokio-stream",
 ]
 
 [[package]]
