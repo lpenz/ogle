@@ -15,10 +15,9 @@ structopt = "0"
 chrono = "0"
 clap = { version = "2", default-features = false }
 anyhow = "1"
-tokio = { version = "1", features = ["macros", "io-util", "rt", "rt-multi-thread", "process","time", "sync"] }
-tokio-stream = { version = "0", features = ["io-util"] }
+tokio = "1"
+tokio-stream = "0"
 console = "0"
-pin-project-lite = "0"
 tokio-process-stream = "0"
 
 [build-dependencies]
