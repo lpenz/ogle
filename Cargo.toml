@@ -11,18 +11,18 @@ repository = "https://github.com/lpenz/ogle"
 build = "build.rs"
 
 [dependencies]
-structopt = "0"
-chrono = "0"
-clap = { version = "2", default-features = false }
-anyhow = "1"
-tokio = "1"
-tokio-stream = "0"
-console = "0"
-tokio-process-stream = "0"
+structopt = "0.3.25"
+chrono = "0.4.19"
+clap = { version = "2.34.0", default-features = false }
+anyhow = "1.0.52"
+tokio = "1.15.0"
+tokio-stream = "0.1.8"
+console = "0.15.0"
+tokio-process-stream = "0.1.0"
 
 [build-dependencies]
-anyhow = "1"
-man = "0"
+anyhow = "1.0.52"
+man = "0.3.0"
 
 [package.metadata.deb]
 section = "utils"
