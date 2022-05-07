@@ -9,6 +9,8 @@ readme = "README.md"
 homepage = "https://github.com/lpenz/ogle"
 repository = "https://github.com/lpenz/ogle"
 build = "build.rs"
+categories = ["command-line-utilities"]
+keywords = ["watch", "command-line"]
 
 [dependencies]
 structopt = "0.3.26"
