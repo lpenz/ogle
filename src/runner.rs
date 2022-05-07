@@ -62,12 +62,13 @@ pub enum StreamItem {
     Tick,
 }
 
-impl From<tps::Item> for StreamItem {
-    fn from(item: tps::Item) -> Self {
+impl From<tps::Item<String>> for StreamItem {
+    fn from(item: tps::Item<String>) -> Self {
         match item {
             tps::Item::Stdout(l) => StreamItem::Line(l),
             tps::Item::Stderr(l) => StreamItem::Line(l),
-            tps::Item::Done(s) => StreamItem::Done(s),
+            tps::Item::Done(s) => StreamItem::Done(s.unwrap()),
+            // TODO: add error to get rid of this unwrap ^
         }
     }
 }
