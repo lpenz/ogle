@@ -77,7 +77,7 @@ impl Progbar {
         let dur = self.duration.as_millis();
         let refresh = self.refresh_delay.as_millis();
         let total = self.barsize(overhead, dur, refresh);
-        let elapsed = self.elapsed();
+        let elapsed = self.start.elapsed();
         let ratio = elapsed.as_millis() as f32 / self.duration.as_millis() as f32;
         let left = if ratio < 1_f32 {
             ((total as f32) * ratio).ceil() as usize
@@ -86,10 +86,6 @@ impl Progbar {
         };
         let right = if left < total { total - left } else { 0 };
         (left, right, total)
-    }
-
-    fn elapsed(&self) -> time::Duration {
-        time::Instant::now() - self.start
     }
 
     fn spinner(&mut self) -> char {

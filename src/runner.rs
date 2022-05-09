@@ -167,7 +167,7 @@ pub async fn run_once(cli: &Cli, last_rundata: RunData, pb: &mut Progbar) -> Res
     Ok(RunData {
         status: Some(status),
         output: vecboth,
-        duration: time::Instant::now() - start,
+        duration: start.elapsed(),
     })
 }
 
