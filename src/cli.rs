@@ -2,22 +2,23 @@
 // This file is subject to the terms and conditions defined in
 // file 'LICENSE', which is part of this source code package.
 
+use clap::IntoApp;
+use clap::Parser;
 use std::env;
 use std::ffi::OsString;
-use structopt::StructOpt;
 
-#[derive(StructOpt, Debug)]
+#[derive(clap::StructOpt, Debug)]
 pub struct Cli {
     /// Period to sleep between executions
     #[structopt(short, long, default_value = "1")]
     pub period: u64,
 
     /// Invoke the shell on the single command argument
-    #[structopt(short = "c", long = "shell")]
+    #[structopt(short = 'c', long = "shell")]
     pub shell: bool,
 
     /// Loop until the command exists with success
-    #[structopt(short = "z", long = "until-success")]
+    #[structopt(short = 'z', long = "until-success")]
     pub until_success: bool,
 
     /// The command to run
@@ -35,21 +36,21 @@ impl Cli {
         I: IntoIterator,
         I::Item: Into<OsString> + Clone,
     {
-        let clap = Cli::clap().get_matches_from_safe(iter)?;
-        let cli = Cli::from_clap(&clap);
+        let cli = Cli::parse_from(iter);
+        let mut cmd = Cli::command();
         if cli.command.is_empty() {
-            Err(clap::Error::with_description(
+            Err(cmd.error(
+                clap::ErrorKind::EmptyValue,
                 "No command specified
 
 For more information try --help",
-                clap::ErrorKind::EmptyValue,
             ))
         } else if cli.shell && cli.command.len() != 1 {
-            Err(clap::Error::with_description(
+            Err(cmd.error(
+                clap::ErrorKind::InvalidValue,
                 "In shell mode, command must be in a single argument
 
 For more information try --help",
-                clap::ErrorKind::InvalidValue,
             ))
         } else {
             Ok(cli)
