@@ -1,5 +1,6 @@
 [![CI](https://github.com/lpenz/ogle/actions/workflows/ci.yml/badge.svg)](https://github.com/lpenz/ogle/actions/workflows/ci.yml)
 [![coveralls](https://coveralls.io/repos/github/lpenz/ogle/badge.svg?branch=main)](https://coveralls.io/github/lpenz/ogle?branch=main)
+[![dependency status](https://deps.rs/repo/github/lpenz/ogle/status.svg)](https://deps.rs/repo/github/lpenz/ogle)
 [![crates.io](https://img.shields.io/crates/v/ogle)](https://crates.io/crates/ogle)
 [![packagecloud](https://img.shields.io/badge/deb-packagecloud.io-844fec.svg)](https://packagecloud.io/app/lpenz/debian/search?q=ogle)
 
