@@ -8,9 +8,9 @@ use std::env;
 use std::error::Error;
 use std::fs::{self, File};
 use std::io::Write;
-use std::path::Path;
+use std::path;
 
-fn generate_man_page<P: AsRef<Path>>(outdir: P) -> anyhow::Result<()> {
+fn generate_man_page<P: AsRef<path::Path>>(outdir: P) -> anyhow::Result<()> {
     let outdir = outdir.as_ref();
     let man_path = outdir.join("ogle.1");
     let manpage = Manual::new("ogle")
@@ -71,8 +71,19 @@ fn generate_man_page<P: AsRef<Path>>(outdir: P) -> anyhow::Result<()> {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let outdir = env::var_os("OUT_DIR").ok_or_else(|| anyhow::anyhow!("error getting OUT_DIR"))?;
+    let mut outdir = path::PathBuf::from(
+        env::var_os("OUT_DIR").ok_or_else(|| anyhow::anyhow!("error getting OUT_DIR"))?,
+    );
     fs::create_dir_all(&outdir)?;
+    generate_man_page(&outdir)?;
+    // build/ogle-*/out
+    outdir.pop();
+    // build/ogle-*
+    outdir.pop();
+    // build
+    outdir.pop();
+    // .
+    // (either target/release or target/build)
     generate_man_page(&outdir)?;
     Ok(())
 }
