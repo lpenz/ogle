@@ -5,14 +5,19 @@ jobs:
   omnilint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: docker://lpenz/omnilint:0.4
+      - uses: actions/checkout@v3.0.2
+      - uses: docker://lpenz/omnilint:0.5
   rust:
-    uses: lpenz/ghworkflow-rust/.github/workflows/rust.yml@v0.4
+    uses: lpenz/ghworkflow-rust/.github/workflows/rust.yml@v0.10.0
     with:
       coveralls: true
       deb: true
-      packagecloud: true
+      publish_cratesio: true
+      publish_github_release: true
+      publish_github_release_files: |
+        target/release/ogle target/release/ogle.1
+      publish_packagecloud: true
+      publish_packagecloud_repository: debian/debian/bullseye
     secrets:
       CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       PACKAGECLOUD_TOKEN: ${{ secrets.PACKAGECLOUD_TOKEN }}
