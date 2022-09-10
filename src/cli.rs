@@ -2,23 +2,24 @@
 // This file is subject to the terms and conditions defined in
 // file 'LICENSE', which is part of this source code package.
 
-use clap::IntoApp;
+// use clap::IntoApp;
 use clap::Parser;
 use std::env;
 use std::ffi::OsString;
 
-#[derive(clap::StructOpt, Debug)]
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
 pub struct Cli {
     /// Period to sleep between executions
-    #[structopt(short, long, default_value = "1")]
+    #[arg(short, long, default_value = "1")]
     pub period: u64,
 
     /// Invoke the shell on the single command argument
-    #[structopt(short = 'c', long = "shell")]
+    #[arg(short = 'c', long = "shell")]
     pub shell: bool,
 
     /// Loop until the command exists with success
-    #[structopt(short = 'z', long = "until-success")]
+    #[arg(short = 'z', long = "until-success")]
     pub until_success: bool,
 
     /// The command to run
@@ -37,17 +38,17 @@ impl Cli {
         I::Item: Into<OsString> + Clone,
     {
         let cli = Cli::parse_from(iter);
-        let mut cmd = Cli::command();
+        let mut cmd = clap::Command::default();
         if cli.command.is_empty() {
             Err(cmd.error(
-                clap::ErrorKind::EmptyValue,
+                clap::error::ErrorKind::TooFewValues,
                 "No command specified
 
 For more information try --help",
             ))
         } else if cli.shell && cli.command.len() != 1 {
             Err(cmd.error(
-                clap::ErrorKind::InvalidValue,
+                clap::error::ErrorKind::InvalidValue,
                 "In shell mode, command must be in a single argument
 
 For more information try --help",
