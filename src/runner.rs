@@ -28,8 +28,8 @@ pub fn buildcmdline(cli: &Cli) -> String {
 pub fn buildcmd(cli: &Cli) -> Command {
     let mut cmd = if cli.shell {
         let mut cmd = Command::new("/bin/sh");
-        cmd.args(&["-c"]);
-        cmd.args(&[cli.command[0].as_str()]);
+        cmd.args(["-c"]);
+        cmd.args([cli.command[0].as_str()]);
         cmd
     } else {
         let mut cmd = Command::new(&cli.command[0]);

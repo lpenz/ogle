@@ -66,7 +66,7 @@ fn generate_man_page<P: AsRef<path::Path>>(outdir: P) -> anyhow::Result<()> {
                 .command("ogle --shell -- 'ps -eo %cpu,args --sort -%cpu | head'"),
         )
         .render();
-    File::create(&man_path)?.write_all(manpage.as_bytes())?;
+    File::create(man_path)?.write_all(manpage.as_bytes())?;
     Ok(())
 }
 
