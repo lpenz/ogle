@@ -8,7 +8,7 @@ jobs:
       - uses: actions/checkout@v3.3.0
       - uses: docker://lpenz/omnilint:0.5.1
   rust:
-    uses: lpenz/ghworkflow-rust/.github/workflows/rust.yml@v0.13.0
+    uses: lpenz/ghworkflow-rust/.github/workflows/rust.yml@v0.14.0
     with:
       coveralls: true
       deb: true
