@@ -13,20 +13,20 @@ categories = ["command-line-utilities"]
 keywords = ["watch", "command-line"]
 
 [dependencies]
-clap = { version = "4.2.1", features = ["derive"] }
-anyhow = "1.0.70"
-tokio = "1.27.0"
-tokio-stream = "0.1.12"
-console = "0.15.5"
+clap = { version = "4.3.23", features = ["derive"] }
+anyhow = "1.0.75"
+tokio = "1.32.0"
+tokio-stream = "0.1.14"
+console = "0.15.7"
 tokio-process-stream = "0.4.0"
 
 [dependencies.chrono]
-version = "0.4.24"
+version = "0.4.26"
 default-features = false
 features = ["clock"]
 
 [build-dependencies]
-anyhow = "1.0.70"
+anyhow = "1.0.75"
 man = "0.3.0"
 
 [package.metadata.deb]
