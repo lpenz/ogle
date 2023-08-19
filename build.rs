@@ -2,7 +2,7 @@
 // This file is subject to the terms and conditions defined in
 // file 'LICENSE', which is part of this source code package.
 
-use anyhow::Result;
+use color_eyre::{eyre::eyre, Result};
 use man::prelude::*;
 use std::env;
 use std::error::Error;
@@ -10,7 +10,7 @@ use std::fs::{self, File};
 use std::io::Write;
 use std::path;
 
-fn generate_man_page<P: AsRef<path::Path>>(outdir: P) -> anyhow::Result<()> {
+fn generate_man_page<P: AsRef<path::Path>>(outdir: P) -> Result<()> {
     let outdir = outdir.as_ref();
     let man_path = outdir.join("ogle.1");
     let manpage = Manual::new("ogle")
@@ -71,9 +71,9 @@ fn generate_man_page<P: AsRef<path::Path>>(outdir: P) -> anyhow::Result<()> {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let mut outdir = path::PathBuf::from(
-        env::var_os("OUT_DIR").ok_or_else(|| anyhow::anyhow!("error getting OUT_DIR"))?,
-    );
+    color_eyre::install()?;
+    let mut outdir =
+        path::PathBuf::from(env::var_os("OUT_DIR").ok_or_else(|| eyre!("error getting OUT_DIR"))?);
     fs::create_dir_all(&outdir)?;
     generate_man_page(&outdir)?;
     // build/ogle-*/out

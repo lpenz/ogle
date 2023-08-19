@@ -14,7 +14,7 @@ keywords = ["watch", "command-line"]
 
 [dependencies]
 clap = { version = "4.3.23", features = ["derive"] }
-anyhow = "1.0.75"
+color-eyre = "0.6.2"
 tokio = "1.32.0"
 tokio-stream = "0.1.14"
 console = "0.15.7"
@@ -26,7 +26,7 @@ default-features = false
 features = ["clock"]
 
 [build-dependencies]
-anyhow = "1.0.75"
+color-eyre = "0.6.2"
 man = "0.3.0"
 
 [package.metadata.deb]

@@ -2,7 +2,7 @@
 // This file is subject to the terms and conditions defined in
 // file 'LICENSE', which is part of this source code package.
 
-use anyhow::Result;
+use color_eyre::Result;
 use std::convert::TryFrom;
 use std::process::ExitStatus;
 use std::process::Stdio;
