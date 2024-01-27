@@ -6,6 +6,8 @@ use color_eyre::Result;
 use console::Term;
 use tokio::time;
 
+use crate::misc::localnow;
+
 const SPINNERS: [char; 4] = ['/', '-', '\\', '|'];
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
@@ -24,6 +26,7 @@ pub struct Progbar {
     duration: time::Duration,
     refresh_delay: time::Duration,
     ispinner: usize,
+    lastrun: String,
     term: Term,
 }
 
@@ -37,6 +40,7 @@ impl Default for Progbar {
             duration: time::Duration::from_secs(0),
             refresh_delay: time::Duration::from_millis(250),
             ispinner: 0,
+            lastrun: String::default(),
             term: Term::stdout(),
         }
     }
@@ -119,18 +123,20 @@ impl Progbar {
                 let msg = if self.duration.as_secs() > 1 {
                     let end = self.start + self.duration;
                     let left = end - time::Instant::now();
-                    format!("=> sleeping for {}s", left.as_secs() + 1)
+                    format!("=> {} sleeping for {}s", self.lastrun, left.as_secs() + 1)
                 } else {
-                    "=> sleeping".to_string()
+                    format!("=> {} sleeping", self.lastrun)
                 };
                 self.term.write_line(&msg)?;
             }
             Mode::Running => {
                 let dur = self.duration.as_millis();
+                self.lastrun = localnow();
                 let msg = if dur <= 3000 {
-                    format!("=> running [{}]", self.spinner())
+                    let lastrun = self.lastrun.clone();
+                    format!("=> {} running [{}]", lastrun, self.spinner())
                 } else {
-                    let header = "=> running ";
+                    let header = format!("=> {} running ", self.lastrun);
                     let (left, right, _) = self.proginfo(header.len() + 6);
                     let marker = if right == 0 { "=" } else { ">" };
                     format!(

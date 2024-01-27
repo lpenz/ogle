@@ -13,6 +13,7 @@ use tokio_stream::wrappers::IntervalStream;
 use tokio_stream::StreamExt;
 
 use crate::cli::Cli;
+use crate::misc::localnow;
 use crate::progbar::Progbar;
 
 const REFRESH_DELAY: time::Duration = time::Duration::from_millis(250);
@@ -82,7 +83,7 @@ impl From<time::Instant> for StreamItem {
 pub fn print_backlog(pb: &mut Progbar, cmdline: &str, lines: &[String]) -> Result<()> {
     pb.hide()?;
     println!();
-    println!("=> changed at {}", chrono::offset::Local::now());
+    println!("=> {} changed", localnow());
     println!("+ {}", cmdline);
     for l in lines {
         println!("{}", l);
