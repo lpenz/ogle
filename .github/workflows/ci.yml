@@ -7,7 +7,7 @@ jobs:
   rust:
     uses: lpenz/ghworkflow-rust/.github/workflows/rust.yml@v0.20.0
     with:
-      coveralls: true
+      codecov: true
       deb: true
       publish_cratesio: true
       publish_github_release: true
