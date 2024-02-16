@@ -18,25 +18,9 @@ use crate::progbar::Progbar;
 
 const REFRESH_DELAY: time::Duration = time::Duration::from_millis(250);
 
-pub fn buildcmdline(cli: &Cli) -> String {
-    if cli.shell {
-        format!("/bin/sh -c \"{}\"", cli.command[0].as_str())
-    } else {
-        cli.command.join(" ")
-    }
-}
-
 pub fn buildcmd(cli: &Cli) -> Command {
-    let mut cmd = if cli.shell {
-        let mut cmd = Command::new("/bin/sh");
-        cmd.args(["-c"]);
-        cmd.args([cli.command[0].as_str()]);
-        cmd
-    } else {
-        let mut cmd = Command::new(&cli.command[0]);
-        cmd.args(cli.command.iter().skip(1));
-        cmd
-    };
+    let mut cmd = Command::new(&cli.command[0]);
+    cmd.args(cli.command.iter().skip(1));
     cmd.stdin(Stdio::null());
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
@@ -156,7 +140,7 @@ pub async fn run_once(cli: &Cli, last_rundata: RunData, pb: &mut Progbar) -> Res
     let procstream = tps::ProcessStream::try_from(cmd)?.map(StreamItem::from);
     let ticker = IntervalStream::new(time::interval(REFRESH_DELAY));
     let stream = procstream.merge(ticker.map(StreamItem::from));
-    let cmdline = buildcmdline(cli);
+    let cmdline = cli.command.join(" ");
     let task = stream_task(
         &cmdline,
         last_rundata.output,
