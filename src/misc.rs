@@ -8,3 +8,8 @@ pub fn localnow() -> String {
         chrono::offset::Local::now().format("%Y-%m-%d %H:%M:%S")
     )
 }
+
+#[test]
+fn test_localnow() {
+    assert!(!localnow().is_empty());
+}
