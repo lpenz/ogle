@@ -14,7 +14,7 @@
       rec {
         packages.default = pkgs.rustPlatform.buildRustPackage {
           pname = "ogle";
-          version = "1.4.8";
+          version = "1.4.9";
           src = self;
           cargoLock.lockFile = ./Cargo.lock;
         };
