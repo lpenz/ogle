@@ -2,7 +2,17 @@
 // This file is subject to the terms and conditions defined in
 // file 'LICENSE', which is part of this source code package.
 
-pub mod cli;
-pub mod misc;
-pub mod progbar;
-pub mod runner;
+use clap::Parser;
+use std::error::Error;
+
+mod cli;
+mod misc;
+mod progbar;
+mod runner;
+
+#[tokio::main]
+pub async fn main() -> Result<(), Box<dyn Error>> {
+    let args = cli::Cli::parse();
+    runner::run_loop(&args).await?;
+    Ok(())
+}
