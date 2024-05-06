@@ -159,13 +159,13 @@ pub async fn run_once(cli: &Cli, last_rundata: RunData, pb: &mut Progbar) -> Res
 pub async fn run_loop(cli: &Cli) -> Result<()> {
     let mut pb = Progbar::default();
     let mut last_rundata = run_once(cli, RunData::default(), &mut pb).await?;
-    if cli.until_success && last_rundata.success() {
+    if cli.until_success && last_rundata.success() || cli.until_failure && !last_rundata.success() {
         return Ok(());
     }
     let cli_period = time::Duration::from_secs(cli.period);
     loop {
         let rundata = run_once(cli, last_rundata, &mut pb).await?;
-        if cli.until_success && rundata.success() {
+        if cli.until_success && rundata.success() || cli.until_failure && !rundata.success() {
             return Ok(());
         }
         last_rundata = rundata;

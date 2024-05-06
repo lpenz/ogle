@@ -18,6 +18,10 @@ pub struct Cli {
     #[arg(short = 'z', long = "until-success")]
     pub until_success: bool,
 
+    /// Loop until the command exists with a failure
+    #[arg(short = 'e', long = "until-failure")]
+    pub until_failure: bool,
+
     /// The command to run
     #[clap(value_parser, required = true)]
     pub command: Vec<String>,
