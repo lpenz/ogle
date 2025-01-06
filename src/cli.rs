@@ -2,6 +2,9 @@
 // This file is subject to the terms and conditions defined in
 // file 'LICENSE', which is part of this source code package.
 
+use std::process::Stdio;
+use tokio::process::Command;
+
 use clap::Parser;
 
 #[cfg(test)]
@@ -25,6 +28,17 @@ pub struct Cli {
     /// The command to run
     #[clap(value_parser, required = true)]
     pub command: Vec<String>,
+}
+
+impl Cli {
+    pub fn get_command(&self) -> Command {
+        let mut cmd = Command::new(&self.command[0]);
+        cmd.args(self.command.iter().skip(1));
+        cmd.stdin(Stdio::null());
+        cmd.stdout(Stdio::piped());
+        cmd.stderr(Stdio::piped());
+        cmd
+    }
 }
 
 #[test]
@@ -51,5 +65,18 @@ fn period() -> Result<()> {
     assert_eq!(cli.period, 5);
     let cli = Cli::try_parse_from(vec!["ogle", "--period", "7", "--", "ls", "-l"])?;
     assert_eq!(cli.period, 7);
+    Ok(())
+}
+
+#[tokio::test]
+async fn get_command() -> Result<()> {
+    let cli = Cli::try_parse_from(vec!["ogle", "true"])?;
+    let mut cmd = cli.get_command();
+    let exit = cmd.spawn()?.wait().await?;
+    assert!(exit.success());
+    let cli = Cli::try_parse_from(vec!["ogle", "false"])?;
+    let mut cmd = cli.get_command();
+    let exit = cmd.spawn()?.wait().await?;
+    assert!(!exit.success());
     Ok(())
 }

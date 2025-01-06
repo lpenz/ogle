@@ -5,8 +5,6 @@
 use color_eyre::Result;
 use std::convert::TryFrom;
 use std::process::ExitStatus;
-use std::process::Stdio;
-use tokio::process::Command;
 use tokio::time;
 use tokio_process_stream as tps;
 use tokio_stream::wrappers::IntervalStream;
@@ -38,20 +36,11 @@ impl From<time::Instant> for StreamItem {
     }
 }
 
-fn buildcmd(cli: &Cli) -> Command {
-    let mut cmd = Command::new(&cli.command[0]);
-    cmd.args(cli.command.iter().skip(1));
-    cmd.stdin(Stdio::null());
-    cmd.stdout(Stdio::piped());
-    cmd.stderr(Stdio::piped());
-    cmd
-}
-
 pub fn stream_create(
     cli: &Cli,
     refresh_delay: time::Duration,
 ) -> Result<impl StreamExt<Item = StreamItem> + std::marker::Unpin + Send + 'static> {
-    let cmd = buildcmd(cli);
+    let cmd = cli.get_command();
     let procstream = tps::ProcessStream::try_from(cmd)?.map(StreamItem::from);
     let ticker = IntervalStream::new(time::interval(refresh_delay));
     Ok(procstream.merge(ticker.map(StreamItem::from)))
