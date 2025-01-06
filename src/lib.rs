@@ -9,6 +9,7 @@ mod cli;
 mod misc;
 mod progbar;
 mod runner;
+mod stream;
 
 #[tokio::main]
 pub async fn main() -> Result<(), Box<dyn Error>> {

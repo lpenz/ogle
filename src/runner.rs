@@ -3,29 +3,17 @@
 // file 'LICENSE', which is part of this source code package.
 
 use color_eyre::Result;
-use std::convert::TryFrom;
 use std::process::ExitStatus;
-use std::process::Stdio;
-use tokio::process::Command;
 use tokio::time;
-use tokio_process_stream as tps;
-use tokio_stream::wrappers::IntervalStream;
 use tokio_stream::StreamExt;
 
 use crate::cli::Cli;
 use crate::misc::localnow;
 use crate::progbar::Progbar;
+use crate::stream::stream_create;
+use crate::stream::StreamItem;
 
 const REFRESH_DELAY: time::Duration = time::Duration::from_millis(250);
-
-pub fn buildcmd(cli: &Cli) -> Command {
-    let mut cmd = Command::new(&cli.command[0]);
-    cmd.args(cli.command.iter().skip(1));
-    cmd.stdin(Stdio::null());
-    cmd.stdout(Stdio::piped());
-    cmd.stderr(Stdio::piped());
-    cmd
-}
 
 #[derive(Debug, Default, Clone)]
 pub struct RunData {
@@ -37,30 +25,6 @@ pub struct RunData {
 impl RunData {
     pub fn success(&self) -> bool {
         self.status.map_or(false, |s| s.success())
-    }
-}
-
-#[derive(Debug)]
-pub enum StreamItem {
-    Line(String),
-    Done(ExitStatus),
-    Tick,
-}
-
-impl From<tps::Item<String>> for StreamItem {
-    fn from(item: tps::Item<String>) -> Self {
-        match item {
-            tps::Item::Stdout(l) => StreamItem::Line(l),
-            tps::Item::Stderr(l) => StreamItem::Line(l),
-            tps::Item::Done(s) => StreamItem::Done(s.unwrap()),
-            // TODO: add error to get rid of this unwrap ^
-        }
-    }
-}
-
-impl From<time::Instant> for StreamItem {
-    fn from(_: time::Instant) -> Self {
-        StreamItem::Tick
     }
 }
 
@@ -135,11 +99,8 @@ where
 }
 
 pub async fn run_once(cli: &Cli, last_rundata: RunData, pb: &mut Progbar) -> Result<RunData> {
-    let cmd = buildcmd(cli);
     let start = time::Instant::now();
-    let procstream = tps::ProcessStream::try_from(cmd)?.map(StreamItem::from);
-    let ticker = IntervalStream::new(time::interval(REFRESH_DELAY));
-    let stream = procstream.merge(ticker.map(StreamItem::from));
+    let stream = stream_create(cli, REFRESH_DELAY)?;
     let cmdline = cli.command.join(" ");
     let task = stream_task(
         &cmdline,
