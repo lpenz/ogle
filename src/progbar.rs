@@ -88,7 +88,7 @@ impl Progbar {
         } else {
             total
         };
-        let right = if left < total { total - left } else { 0 };
+        let right = total.saturating_sub(left);
         (left, right, total)
     }
 
