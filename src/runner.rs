@@ -56,7 +56,8 @@ where
     pb.set_running(last_period);
     while let Some(item) = stream.next().await {
         let (stsopt, lineopt) = match item {
-            StreamItem::Line(line) => (None, Some(line)),
+            StreamItem::LineOut(line) => (None, Some(line)),
+            StreamItem::LineErr(line) => (None, Some(line)),
             StreamItem::Tick => {
                 pb.refresh()?;
                 (None, None)

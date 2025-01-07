@@ -14,7 +14,8 @@ use crate::cli::Cli;
 
 #[derive(Debug)]
 pub enum StreamItem {
-    Line(String),
+    LineOut(String),
+    LineErr(String),
     Done(ExitStatus),
     Tick,
 }
@@ -22,8 +23,8 @@ pub enum StreamItem {
 impl From<tps::Item<String>> for StreamItem {
     fn from(item: tps::Item<String>) -> Self {
         match item {
-            tps::Item::Stdout(l) => StreamItem::Line(l),
-            tps::Item::Stderr(l) => StreamItem::Line(l),
+            tps::Item::Stdout(l) => StreamItem::LineOut(l),
+            tps::Item::Stderr(l) => StreamItem::LineErr(l),
             tps::Item::Done(s) => StreamItem::Done(s.unwrap()),
             // TODO: add error to get rid of this unwrap ^
         }
