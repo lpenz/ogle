@@ -13,6 +13,7 @@ mod stream;
 
 #[tokio::main]
 pub async fn main() -> Result<(), Box<dyn Error>> {
+    color_eyre::install()?;
     let args = cli::Cli::parse();
     runner::run_loop(&args).await?;
     Ok(())
