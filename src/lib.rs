@@ -3,10 +3,16 @@
 // file 'LICENSE', which is part of this source code package.
 
 use clap::Parser;
+
 use std::error::Error;
+
+mod output_trait;
+
+mod output_simple;
 
 mod cli;
 mod misc;
+mod orchestrator;
 mod progbar;
 mod runner;
 mod stream;
