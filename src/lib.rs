@@ -3,10 +3,16 @@
 // file 'LICENSE', which is part of this source code package.
 
 use clap::Parser;
+
 use std::error::Error;
+
+mod output_trait;
+
+mod output_simple;
 
 mod cli;
 mod misc;
+mod orchestrator;
 mod progbar;
 mod runner;
 mod stream;
@@ -16,5 +22,14 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
     color_eyre::install()?;
     let args = cli::Cli::parse();
     runner::run_loop(&args).await?;
+    Ok(())
+}
+
+#[tokio::main]
+pub async fn main2() -> Result<(), Box<dyn Error>> {
+    env_logger::init();
+    color_eyre::install()?;
+    let args = cli::Cli::parse();
+    orchestrator::run(&args).await?;
     Ok(())
 }
