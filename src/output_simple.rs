@@ -6,6 +6,7 @@ use color_eyre::Result;
 use console::Term;
 use std::process::ExitStatus;
 use tokio::time;
+use tracing::instrument;
 
 use crate::misc::localnow;
 use crate::output_trait::Output;
@@ -26,12 +27,14 @@ impl Default for OutputSimple {
 }
 
 impl OutputSimple {
+    #[instrument(level = "debug")]
     pub fn new() -> OutputSimple {
         OutputSimple::default()
     }
 }
 
 impl Output for OutputSimple {
+    #[instrument(level = "debug", fields(self=?self.start))]
     fn run_start(&mut self) -> Result<()> {
         let now = time::Instant::now();
         self.start = Some(now);
@@ -40,6 +43,7 @@ impl Output for OutputSimple {
         Ok(())
     }
 
+    #[instrument(level = "debug", skip(self))]
     fn run_end(&mut self, exitstatus: &ExitStatus) -> Result<()> {
         let msg = format!(
             "[ogle] {} execution ended with {:?}",
@@ -50,15 +54,19 @@ impl Output for OutputSimple {
         Ok(())
     }
 
+    #[instrument(level = "debug", skip(self))]
     fn out_line(&mut self, line: String) -> Result<()> {
         self.term.write_line(&line)?;
         Ok(())
     }
+
+    #[instrument(level = "debug", skip(self))]
     fn err_line(&mut self, line: String) -> Result<()> {
         self.term.write_line(&line)?;
         Ok(())
     }
 
+    // #[instrument(level = "debug", skip(self))]
     fn tick(&mut self) -> Result<()> {
         Ok(())
     }

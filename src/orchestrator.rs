@@ -6,6 +6,9 @@ use color_eyre::eyre::eyre;
 use color_eyre::Result;
 use tokio::time;
 use tokio_stream::StreamExt;
+use tracing::event;
+use tracing::instrument;
+use tracing::Level;
 
 use crate::cli::Cli;
 use crate::output_simple::OutputSimple;
@@ -15,11 +18,13 @@ use crate::stream::StreamItem;
 
 const REFRESH_DELAY: time::Duration = time::Duration::from_millis(250);
 
+#[instrument(level = "debug", skip_all)]
 pub async fn stream_task<T>(output: &mut OutputSimple, mut stream: T) -> Result<()>
 where
     T: StreamExt<Item = StreamItem> + std::marker::Unpin + Send + 'static,
 {
     while let Some(item) = stream.next().await {
+        event!(Level::DEBUG, item = ?item, "received");
         match item {
             StreamItem::LineOut(line) => {
                 output.out_line(line)?;
@@ -40,6 +45,7 @@ where
     panic!("stream ended before process");
 }
 
+#[instrument(level = "debug")]
 pub async fn run(cli: &Cli) -> Result<()> {
     let mut output = OutputSimple::new();
     let cli_period = time::Duration::from_secs(cli.period);
