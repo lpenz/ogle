@@ -4,22 +4,28 @@
 
 use color_eyre::eyre::eyre;
 use color_eyre::Result;
+use std::process::ExitStatus;
 use tokio::time;
 use tokio_stream::StreamExt;
+use tracing::event;
+use tracing::instrument;
+use tracing::Level;
 
 use crate::cli::Cli;
-use crate::output_simple::OutputSimple;
 use crate::output_trait::Output;
 use crate::stream::stream_create;
 use crate::stream::StreamItem;
 
 const REFRESH_DELAY: time::Duration = time::Duration::from_millis(250);
 
-pub async fn stream_task<T>(output: &mut OutputSimple, mut stream: T) -> Result<()>
+#[instrument(level = "debug", skip_all)]
+pub async fn stream_task<O, T>(output: &mut O, mut stream: T) -> Result<Option<ExitStatus>>
 where
-    T: StreamExt<Item = StreamItem> + std::marker::Unpin + Send + 'static,
+    O: Output,
+    T: StreamExt<Item = StreamItem> + std::marker::Unpin,
 {
     while let Some(item) = stream.next().await {
+        event!(Level::DEBUG, item = ?item, "received");
         match item {
             StreamItem::LineOut(line) => {
                 output.out_line(line)?;
@@ -32,7 +38,7 @@ where
             }
             StreamItem::Done(sts) => {
                 output.run_end(&sts)?;
-                return Ok(());
+                return Ok(Some(sts));
             }
             StreamItem::Err(e) => return Err(eyre!(e)),
         };
@@ -40,14 +46,19 @@ where
     panic!("stream ended before process");
 }
 
-pub async fn run(cli: &Cli) -> Result<()> {
-    let mut output = OutputSimple::new();
+#[instrument(level = "debug")]
+pub async fn run<O: Output + std::fmt::Debug>(cli: &Cli, mut output: O) -> Result<()> {
     let cli_period = time::Duration::from_secs(cli.period);
     loop {
         output.run_start()?;
         let stream = stream_create(cli, REFRESH_DELAY)?;
         let task = stream_task(&mut output, stream);
-        task.await?;
+        if let Some(result) = task.await? {
+            if (cli.until_success && result.success()) || (cli.until_failure && !result.success()) {
+                return Ok(());
+            }
+        }
+        // Sleep
         let end = time::Instant::now() + cli_period;
         while time::Instant::now() < end {
             output.tick()?;
