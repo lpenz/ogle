@@ -17,6 +17,7 @@ pub enum StreamItem {
     LineOut(String),
     LineErr(String),
     Done(ExitStatus),
+    Err(std::io::Error),
     Tick,
 }
 
@@ -25,8 +26,8 @@ impl From<tps::Item<String>> for StreamItem {
         match item {
             tps::Item::Stdout(l) => StreamItem::LineOut(l),
             tps::Item::Stderr(l) => StreamItem::LineErr(l),
-            tps::Item::Done(s) => StreamItem::Done(s.unwrap()),
-            // TODO: add error to get rid of this unwrap ^
+            tps::Item::Done(Ok(sts)) => StreamItem::Done(sts),
+            tps::Item::Done(Err(e)) => StreamItem::Err(e),
         }
     }
 }

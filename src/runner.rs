@@ -74,6 +74,9 @@ where
                     Some("=> error getting exit code".to_string())
                 },
             ),
+            StreamItem::Err(e) => {
+                panic!("{}", e);
+            }
         };
         if let Some(line) = lineopt {
             lines.push(line);
