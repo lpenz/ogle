@@ -46,3 +46,94 @@ pub fn stream_create(
     let ticker = IntervalStream::new(time::interval(refresh_delay));
     Ok(procstream.merge(ticker.map(StreamItem::from)))
 }
+
+#[cfg(test)]
+mod tests {
+    use clap::Parser;
+    use color_eyre::eyre::eyre;
+    use color_eyre::Result;
+    use tokio::time;
+    use tokio_stream::StreamExt;
+
+    use crate::cli::Cli;
+
+    use super::*;
+
+    async fn stream_cmd(
+        cmd: &[&str],
+    ) -> Result<impl StreamExt<Item = StreamItem> + std::marker::Unpin + Send + 'static> {
+        let duration = time::Duration::from_millis(5000);
+        stream_create(&Cli::try_parse_from(cmd)?, duration)
+    }
+
+    async fn stream_next<T>(stream: &mut T) -> Result<StreamItem>
+    where
+        T: StreamExt<Item = StreamItem> + std::marker::Unpin + Send + 'static,
+    {
+        while let Some(item) = stream.next().await {
+            match item {
+                StreamItem::Tick => {
+                    continue;
+                }
+                _ => {
+                    return Ok(item);
+                }
+            }
+        }
+        Err(eyre!("no item received"))
+    }
+
+    #[tokio::test]
+    async fn test_true() -> Result<()> {
+        let mut stream = stream_cmd(&["ogle", "true"]).await?;
+        let item = stream_next(&mut stream).await?;
+        let StreamItem::Done(sts) = item else {
+            return Err(eyre!("unexpected stream item {:?}", item));
+        };
+        assert!(sts.success());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_false() -> Result<()> {
+        let mut stream = stream_cmd(&["ogle", "false"]).await?;
+        let item = stream_next(&mut stream).await?;
+        let StreamItem::Done(sts) = item else {
+            return Err(eyre!("unexpected stream item {:?}", item));
+        };
+        assert!(!sts.success());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_echo() -> Result<()> {
+        let mut stream = stream_cmd(&["ogle", "echo", "test"]).await?;
+        let item = stream_next(&mut stream).await?;
+        let StreamItem::LineOut(s) = item else {
+            return Err(eyre!("unexpected stream item {:?}", item));
+        };
+        assert_eq!(s, "test");
+        let item = stream_next(&mut stream).await?;
+        let StreamItem::Done(sts) = item else {
+            return Err(eyre!("unexpected stream item {:?}", item));
+        };
+        assert!(sts.success());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_stderr() -> Result<()> {
+        let mut stream = stream_cmd(&["ogle", "--", "/bin/sh", "-c", "echo test >&2"]).await?;
+        let item = stream_next(&mut stream).await?;
+        let StreamItem::LineErr(s) = item else {
+            return Err(eyre!("unexpected stream item {:?}", item));
+        };
+        assert_eq!(s, "test");
+        let item = stream_next(&mut stream).await?;
+        let StreamItem::Done(sts) = item else {
+            return Err(eyre!("unexpected stream item {:?}", item));
+        };
+        assert!(sts.success());
+        Ok(())
+    }
+}
