@@ -24,7 +24,7 @@ pub struct RunData {
 
 impl RunData {
     pub fn success(&self) -> bool {
-        self.status.map_or(false, |s| s.success())
+        self.status.is_some_and(|s| s.success())
     }
 }
 
