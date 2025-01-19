@@ -68,6 +68,17 @@ fn period() -> Result<()> {
     Ok(())
 }
 
+#[test]
+fn until() -> Result<()> {
+    let cli = Cli::try_parse_from(vec!["ogle", "-z", "--", "true"])?;
+    assert!(cli.until_success);
+    assert!(!cli.until_failure);
+    let cli = Cli::try_parse_from(vec!["ogle", "-e", "--", "true"])?;
+    assert!(!cli.until_success);
+    assert!(cli.until_failure);
+    Ok(())
+}
+
 #[tokio::test]
 async fn get_command() -> Result<()> {
     let cli = Cli::try_parse_from(vec!["ogle", "true"])?;
