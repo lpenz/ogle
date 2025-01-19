@@ -66,3 +66,39 @@ pub async fn run<O: Output + std::fmt::Debug>(cli: &Cli, mut output: O) -> Resul
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::output_trait::MockOutput;
+    use clap::Parser;
+
+    #[tokio::test]
+    async fn test_true() -> Result<()> {
+        let mut mock = MockOutput::new();
+        mock.expect_run_start().times(1).returning(|| Ok(()));
+        mock.expect_tick().returning(|| Ok(()));
+        mock.expect_run_end().times(1).returning(|s| {
+            assert!(s.success());
+            Ok(())
+        });
+        let cli = Cli::try_parse_from(["ogle", "-z", "--", "true"])?;
+        run(&cli, mock).await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_false() -> Result<()> {
+        let mut mock = MockOutput::new();
+        mock.expect_run_start().times(1).returning(|| Ok(()));
+        mock.expect_tick().returning(|| Ok(()));
+        mock.expect_run_end().times(1).returning(|s| {
+            assert!(!s.success());
+            Ok(())
+        });
+        let cli = Cli::try_parse_from(["ogle", "-e", "--", "false"])?;
+        run(&cli, mock).await?;
+        Ok(())
+    }
+}
