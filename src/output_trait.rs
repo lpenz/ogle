@@ -3,8 +3,10 @@
 // file 'LICENSE', which is part of this source code package.
 
 use color_eyre::Result;
+use mockall::automock;
 use std::process::ExitStatus;
 
+#[automock]
 pub trait Output {
     fn run_start(&mut self) -> Result<()>;
     fn run_end(&mut self, exitstatus: &ExitStatus) -> Result<()>;
