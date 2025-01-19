@@ -30,6 +30,7 @@ pub async fn main2() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     color_eyre::install()?;
     let args = cli::Cli::parse();
-    orchestrator::run(&args).await?;
+    let output = output_simple::OutputSimple::new();
+    orchestrator::run(&args, output).await?;
     Ok(())
 }
