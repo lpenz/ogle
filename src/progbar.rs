@@ -2,6 +2,7 @@
 // This file is subject to the terms and conditions defined in
 // file 'LICENSE', which is part of this source code package.
 
+use color_eyre::Report;
 use color_eyre::Result;
 use console::Term;
 use tokio::time;
@@ -9,6 +10,26 @@ use tokio::time;
 use crate::misc::localnow;
 
 const SPINNERS: [char; 4] = ['/', '-', '\\', '|'];
+
+// Basic functions:
+
+pub fn progbar_sleeping(
+    term: &Term,
+    timestamp: &str,
+    start: time::Instant,
+    duration: time::Duration,
+) -> Result<()> {
+    let msg = if duration.as_secs() > 1 {
+        let end = start + duration;
+        let left = end - time::Instant::now();
+        format!("=> {} sleeping for {}s", timestamp, left.as_secs() + 1)
+    } else {
+        format!("=> {} sleeping", timestamp)
+    };
+    term.write_line(&msg).map_err(Report::new)
+}
+
+// Progbar object:
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum Mode {
@@ -120,14 +141,7 @@ impl Progbar {
                 return Ok(());
             }
             Mode::Sleeping => {
-                let msg = if self.duration.as_secs() > 1 {
-                    let end = self.start + self.duration;
-                    let left = end - time::Instant::now();
-                    format!("=> {} sleeping for {}s", self.lastrun, left.as_secs() + 1)
-                } else {
-                    format!("=> {} sleeping", self.lastrun)
-                };
-                self.term.write_line(&msg)?;
+                progbar_sleeping(&self.term, &self.lastrun, self.start, self.duration)?;
             }
             Mode::Running => {
                 let dur = self.duration.as_millis();
