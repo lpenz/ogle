@@ -11,6 +11,7 @@ mod output_trait;
 mod output_simple;
 
 mod cli;
+mod localtime;
 mod misc;
 mod orchestrator;
 mod progbar;

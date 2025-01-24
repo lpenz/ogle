@@ -8,7 +8,7 @@ use tokio::time;
 use tokio_stream::StreamExt;
 
 use crate::cli::Cli;
-use crate::misc::localnow;
+use crate::localtime::LocalTime;
 use crate::progbar::Progbar;
 use crate::stream::stream_create;
 use crate::stream::StreamItem;
@@ -31,7 +31,7 @@ impl RunData {
 pub fn print_backlog(pb: &mut Progbar, cmdline: &str, lines: &[String]) -> Result<()> {
     pb.hide()?;
     println!();
-    println!("=> {} changed", localnow());
+    println!("=> {} changed", LocalTime::now());
     println!("+ {}", cmdline);
     for l in lines {
         println!("{}", l);

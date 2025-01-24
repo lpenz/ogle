@@ -7,7 +7,7 @@ use color_eyre::Result;
 use console::Term;
 use tokio::time;
 
-use crate::misc::localnow;
+use crate::localtime::LocalTime;
 
 const SPINNERS: [char; 4] = ['/', '-', '\\', '|'];
 
@@ -15,7 +15,7 @@ const SPINNERS: [char; 4] = ['/', '-', '\\', '|'];
 
 pub fn progbar_sleeping(
     term: &Term,
-    timestamp: &str,
+    timestamp: &LocalTime,
     start: time::Instant,
     duration: time::Duration,
 ) -> Result<()> {
@@ -47,7 +47,7 @@ pub struct Progbar {
     duration: time::Duration,
     refresh_delay: time::Duration,
     ispinner: usize,
-    lastrun: String,
+    lastrun: LocalTime,
     term: Term,
 }
 
@@ -61,7 +61,7 @@ impl Default for Progbar {
             duration: time::Duration::from_secs(0),
             refresh_delay: time::Duration::from_millis(250),
             ispinner: 0,
-            lastrun: String::default(),
+            lastrun: LocalTime::now(),
             term: Term::stdout(),
         }
     }
@@ -145,7 +145,7 @@ impl Progbar {
             }
             Mode::Running => {
                 let dur = self.duration.as_millis();
-                self.lastrun = localnow();
+                self.lastrun = LocalTime::now();
                 let msg = if dur <= 3000 {
                     let lastrun = self.lastrun.clone();
                     format!("=> {} running [{}]", lastrun, self.spinner())

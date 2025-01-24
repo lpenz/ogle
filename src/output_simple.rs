@@ -8,7 +8,7 @@ use std::process::ExitStatus;
 use tokio::time;
 use tracing::instrument;
 
-use crate::misc::localnow;
+use crate::localtime::LocalTime;
 use crate::output_trait::Output;
 
 #[derive(Debug)]
@@ -38,7 +38,7 @@ impl Output for OutputSimple {
     fn run_start(&mut self) -> Result<()> {
         let now = time::Instant::now();
         self.start = Some(now);
-        let msg = format!("[ogle] {} execution start", localnow());
+        let msg = format!("[ogle] {} execution start", LocalTime::now());
         self.term.write_line(&msg)?;
         Ok(())
     }
@@ -47,7 +47,7 @@ impl Output for OutputSimple {
     fn run_end(&mut self, exitstatus: &ExitStatus) -> Result<()> {
         let msg = format!(
             "[ogle] {} execution ended with {:?}",
-            localnow(),
+            LocalTime::now(),
             exitstatus
         );
         self.term.write_line(&msg)?;
