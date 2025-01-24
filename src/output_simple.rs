@@ -5,15 +5,14 @@
 use color_eyre::Result;
 use console::Term;
 use std::process::ExitStatus;
-use tokio::time;
 use tracing::instrument;
 
-use crate::misc::localnow;
 use crate::output_trait::Output;
+use crate::timewrap::Instant;
 
 #[derive(Debug)]
 pub struct OutputSimple {
-    start: Option<time::Instant>,
+    start: Option<Instant>,
     term: Term,
 }
 
@@ -36,9 +35,9 @@ impl OutputSimple {
 impl Output for OutputSimple {
     #[instrument(level = "debug", fields(self=?self.start))]
     fn run_start(&mut self) -> Result<()> {
-        let now = time::Instant::now();
+        let now = Instant::now();
         self.start = Some(now);
-        let msg = format!("[ogle] {} execution start", localnow());
+        let msg = format!("[ogle] {} execution start", Instant::now());
         self.term.write_line(&msg)?;
         Ok(())
     }
@@ -47,7 +46,7 @@ impl Output for OutputSimple {
     fn run_end(&mut self, exitstatus: &ExitStatus) -> Result<()> {
         let msg = format!(
             "[ogle] {} execution ended with {:?}",
-            localnow(),
+            Instant::now(),
             exitstatus
         );
         self.term.write_line(&msg)?;

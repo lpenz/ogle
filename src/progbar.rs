@@ -5,9 +5,9 @@
 use color_eyre::Report;
 use color_eyre::Result;
 use console::Term;
-use tokio::time;
 
-use crate::misc::localnow;
+use crate::timewrap::Duration;
+use crate::timewrap::Instant;
 
 const SPINNERS: [char; 4] = ['/', '-', '\\', '|'];
 
@@ -15,14 +15,14 @@ const SPINNERS: [char; 4] = ['/', '-', '\\', '|'];
 
 pub fn progbar_sleeping(
     term: &Term,
-    timestamp: &str,
-    start: time::Instant,
-    duration: time::Duration,
+    timestamp: &Instant,
+    start: &Instant,
+    duration: &Duration,
 ) -> Result<()> {
-    let msg = if duration.as_secs() > 1 {
+    let msg = if duration.num_seconds() > 1 {
         let end = start + duration;
-        let left = end - time::Instant::now();
-        format!("=> {} sleeping for {}s", timestamp, left.as_secs() + 1)
+        let left = &end - &Instant::now();
+        format!("=> {} sleeping for {}s", timestamp, left.num_seconds() + 1)
     } else {
         format!("=> {} sleeping", timestamp)
     };
@@ -43,11 +43,11 @@ pub struct Progbar {
     mode: Mode,
     mode_wanted: Mode,
     shown: bool,
-    start: time::Instant,
-    duration: time::Duration,
-    refresh_delay: time::Duration,
+    start: Instant,
+    duration: Duration,
+    refresh_delay: Duration,
     ispinner: usize,
-    lastrun: String,
+    lastrun: Instant,
     term: Term,
 }
 
@@ -57,27 +57,27 @@ impl Default for Progbar {
             mode: Mode::None,
             mode_wanted: Mode::None,
             shown: false,
-            start: time::Instant::now(),
-            duration: time::Duration::from_secs(0),
-            refresh_delay: time::Duration::from_millis(250),
+            start: Instant::now(),
+            duration: Duration::default(),
+            refresh_delay: Duration::milliseconds(250),
             ispinner: 0,
-            lastrun: String::default(),
+            lastrun: Instant::now(),
             term: Term::stdout(),
         }
     }
 }
 
 impl Progbar {
-    pub fn set_running(&mut self, duration: time::Duration) {
+    pub fn set_running(&mut self, duration: Duration) {
         self.mode_wanted = Mode::Running;
         self.duration = duration;
-        self.start = time::Instant::now();
+        self.start = Instant::now();
     }
 
-    pub fn set_sleep(&mut self, duration: time::Duration) {
+    pub fn set_sleep(&mut self, duration: Duration) {
         self.mode_wanted = Mode::Sleeping;
         self.duration = duration;
-        self.start = time::Instant::now();
+        self.start = Instant::now();
     }
 
     fn width(&self) -> usize {
@@ -88,7 +88,7 @@ impl Progbar {
         }
     }
 
-    fn barsize(&self, overhead: usize, dur: u128, refresh: u128) -> usize {
+    fn barsize(&self, overhead: usize, dur: i64, refresh: i64) -> usize {
         let width = self.width();
         let barsize = (dur / refresh) as usize;
         if barsize + overhead > width {
@@ -99,11 +99,11 @@ impl Progbar {
     }
 
     fn proginfo(&self, overhead: usize) -> (usize, usize, usize) {
-        let dur = self.duration.as_millis();
-        let refresh = self.refresh_delay.as_millis();
+        let dur = self.duration.num_milliseconds();
+        let refresh = self.refresh_delay.num_milliseconds();
         let total = self.barsize(overhead, dur, refresh);
         let elapsed = self.start.elapsed();
-        let ratio = elapsed.as_millis() as f32 / self.duration.as_millis() as f32;
+        let ratio = elapsed.num_milliseconds() as f32 / self.duration.num_milliseconds() as f32;
         let left = if ratio < 1_f32 {
             ((total as f32) * ratio).ceil() as usize
         } else {
@@ -141,14 +141,14 @@ impl Progbar {
                 return Ok(());
             }
             Mode::Sleeping => {
-                progbar_sleeping(&self.term, &self.lastrun, self.start, self.duration)?;
+                progbar_sleeping(&self.term, &self.lastrun, &self.start, &self.duration)?;
             }
             Mode::Running => {
-                let dur = self.duration.as_millis();
-                self.lastrun = localnow();
+                let dur = self.duration.num_milliseconds();
+                self.lastrun = Instant::now();
                 let msg = if dur <= 3000 {
-                    let lastrun = self.lastrun.clone();
-                    format!("=> {} running [{}]", lastrun, self.spinner())
+                    let spinner = self.spinner();
+                    format!("=> {} running [{}]", self.lastrun, spinner)
                 } else {
                     let header = format!("=> {} running ", self.lastrun);
                     let (left, right, _) = self.proginfo(header.len() + 6);

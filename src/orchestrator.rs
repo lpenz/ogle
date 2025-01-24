@@ -5,7 +5,6 @@
 use color_eyre::eyre::eyre;
 use color_eyre::Result;
 use std::process::ExitStatus;
-use tokio::time;
 use tokio_stream::StreamExt;
 use tracing::event;
 use tracing::instrument;
@@ -15,8 +14,10 @@ use crate::cli::Cli;
 use crate::output_trait::Output;
 use crate::stream::stream_create;
 use crate::stream::StreamItem;
+use crate::timewrap::Duration;
+use crate::timewrap::Instant;
 
-const REFRESH_DELAY: time::Duration = time::Duration::from_millis(250);
+const REFRESH_DELAY: Duration = Duration::milliseconds(250);
 
 #[instrument(level = "debug", skip_all)]
 pub async fn stream_task<O, T>(output: &mut O, mut stream: T) -> Result<Option<ExitStatus>>
@@ -48,7 +49,7 @@ where
 
 #[instrument(level = "debug")]
 pub async fn run<O: Output + std::fmt::Debug>(cli: &Cli, mut output: O) -> Result<()> {
-    let cli_period = time::Duration::from_secs(cli.period);
+    let cli_period = Duration::seconds(cli.period.into());
     loop {
         output.run_start()?;
         let stream = stream_create(cli, REFRESH_DELAY)?;
@@ -59,10 +60,10 @@ pub async fn run<O: Output + std::fmt::Debug>(cli: &Cli, mut output: O) -> Resul
             }
         }
         // Sleep
-        let end = time::Instant::now() + cli_period;
-        while time::Instant::now() < end {
+        let end = &Instant::now() + &cli_period;
+        while Instant::now() < end {
             output.tick()?;
-            time::sleep(REFRESH_DELAY).await;
+            tokio::time::sleep(REFRESH_DELAY.into()).await;
         }
     }
 }

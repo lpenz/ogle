@@ -15,7 +15,7 @@ use color_eyre::Result;
 pub struct Cli {
     /// Period to sleep between executions
     #[arg(short, long, default_value = "1")]
-    pub period: u64,
+    pub period: u32,
 
     /// Loop until the command exists with success
     #[arg(short = 'z', long = "until-success")]
