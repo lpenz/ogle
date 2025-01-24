@@ -4,22 +4,22 @@
 
 use color_eyre::Result;
 use std::process::ExitStatus;
-use tokio::time;
 use tokio_stream::StreamExt;
 
 use crate::cli::Cli;
-use crate::misc::localnow;
 use crate::progbar::Progbar;
 use crate::stream::stream_create;
 use crate::stream::StreamItem;
+use crate::timewrap::Duration;
+use crate::timewrap::Instant;
 
-const REFRESH_DELAY: time::Duration = time::Duration::from_millis(250);
+const REFRESH_DELAY: Duration = Duration::milliseconds(250);
 
 #[derive(Debug, Default, Clone)]
 pub struct RunData {
     status: Option<ExitStatus>,
     output: Vec<String>,
-    duration: time::Duration,
+    duration: Duration,
 }
 
 impl RunData {
@@ -31,7 +31,7 @@ impl RunData {
 pub fn print_backlog(pb: &mut Progbar, cmdline: &str, lines: &[String]) -> Result<()> {
     pb.hide()?;
     println!();
-    println!("=> {} changed", localnow());
+    println!("=> {} changed", Instant::now());
     println!("+ {}", cmdline);
     for l in lines {
         println!("{}", l);
@@ -43,7 +43,7 @@ pub fn print_backlog(pb: &mut Progbar, cmdline: &str, lines: &[String]) -> Resul
 pub async fn stream_task<T>(
     cmdline: &str,
     last_lines: Vec<String>,
-    last_period: time::Duration,
+    last_period: Duration,
     mut stream: T,
     pb: &mut Progbar,
 ) -> Result<(ExitStatus, Vec<String>)>
@@ -103,7 +103,7 @@ where
 }
 
 pub async fn run_once(cli: &Cli, last_rundata: RunData, pb: &mut Progbar) -> Result<RunData> {
-    let start = time::Instant::now();
+    let start = Instant::now();
     let stream = stream_create(cli, REFRESH_DELAY)?;
     let cmdline = cli.command.join(" ");
     let task = stream_task(
@@ -127,7 +127,7 @@ pub async fn run_loop(cli: &Cli) -> Result<()> {
     if cli.until_success && last_rundata.success() || cli.until_failure && !last_rundata.success() {
         return Ok(());
     }
-    let cli_period = time::Duration::from_secs(cli.period);
+    let cli_period = Duration::seconds(cli.period.into());
     loop {
         let rundata = run_once(cli, last_rundata, &mut pb).await?;
         if cli.until_success && rundata.success() || cli.until_failure && !rundata.success() {
@@ -135,10 +135,10 @@ pub async fn run_loop(cli: &Cli) -> Result<()> {
         }
         last_rundata = rundata;
         pb.set_sleep(cli_period);
-        let end = time::Instant::now() + cli_period;
-        while time::Instant::now() < end {
+        let end = &Instant::now() + &cli_period;
+        while Instant::now() < end {
             pb.refresh()?;
-            time::sleep(REFRESH_DELAY).await;
+            tokio::time::sleep(REFRESH_DELAY.into()).await;
         }
     }
 }

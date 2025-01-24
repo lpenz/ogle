@@ -16,6 +16,7 @@ mod orchestrator;
 mod progbar;
 mod runner;
 mod stream;
+mod timewrap;
 
 #[tokio::main]
 pub async fn main() -> Result<(), Box<dyn Error>> {
