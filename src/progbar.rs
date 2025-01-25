@@ -14,11 +14,10 @@ const SPINNERS: [char; 4] = ['/', '-', '\\', '|'];
 // Basic functions:
 
 pub fn progbar_sleeping(
-    term: &Term,
     timestamp: &Instant,
     start: &Instant,
     duration: &Duration,
-) -> Result<()> {
+) -> Result<String> {
     let msg = if duration.num_seconds() > 1 {
         let end = start + duration;
         let left = &end - &Instant::now();
@@ -26,7 +25,52 @@ pub fn progbar_sleeping(
     } else {
         format!("=> {} sleeping", timestamp)
     };
-    term.write_line(&msg).map_err(Report::new)
+    Ok(msg)
+}
+
+pub fn progbar_running(
+    width: usize,
+    timestamp: &Instant,
+    start: &Instant,
+    duration: &Duration,
+    refresh: &Duration,
+    spinner: char,
+) -> Result<String> {
+    let dur = duration.num_milliseconds();
+    let msg = if dur <= 3000 {
+        format!("=> {} running [{}]", timestamp, spinner)
+    } else {
+        let head = format!("=> {} running ", timestamp);
+        let tail = format!(" [{}]", spinner);
+        let barsize = {
+            let b = (dur / refresh.num_milliseconds()) as usize;
+            let overhead = head.len() + tail.len() + 1;
+            if b + overhead > width {
+                width - overhead
+            } else {
+                b
+            }
+        };
+        let elapsed = start.elapsed();
+        let ratio = elapsed.num_milliseconds() as f32 / dur as f32;
+        let left = if ratio < 1_f32 {
+            ((barsize as f32) * ratio).ceil() as usize
+        } else {
+            barsize
+        };
+        let right = barsize.saturating_sub(left);
+        let marker = if right == 0 { "=" } else { ">" };
+        format!(
+            "{}[{:=>left$}{:right$}]{}",
+            head,
+            marker,
+            "",
+            tail,
+            left = left,
+            right = right
+        )
+    };
+    Ok(msg)
 }
 
 // Progbar object:
@@ -88,31 +132,6 @@ impl Progbar {
         }
     }
 
-    fn barsize(&self, overhead: usize, dur: i64, refresh: i64) -> usize {
-        let width = self.width();
-        let barsize = (dur / refresh) as usize;
-        if barsize + overhead > width {
-            width - overhead
-        } else {
-            barsize
-        }
-    }
-
-    fn proginfo(&self, overhead: usize) -> (usize, usize, usize) {
-        let dur = self.duration.num_milliseconds();
-        let refresh = self.refresh_delay.num_milliseconds();
-        let total = self.barsize(overhead, dur, refresh);
-        let elapsed = self.start.elapsed();
-        let ratio = elapsed.num_milliseconds() as f32 / self.duration.num_milliseconds() as f32;
-        let left = if ratio < 1_f32 {
-            ((total as f32) * ratio).ceil() as usize
-        } else {
-            total
-        };
-        let right = total.saturating_sub(left);
-        (left, right, total)
-    }
-
     fn spinner(&mut self) -> char {
         self.ispinner = (self.ispinner + 1) % 4;
         SPINNERS[self.ispinner]
@@ -141,29 +160,20 @@ impl Progbar {
                 return Ok(());
             }
             Mode::Sleeping => {
-                progbar_sleeping(&self.term, &self.lastrun, &self.start, &self.duration)?;
+                let msg = progbar_sleeping(&self.lastrun, &self.start, &self.duration)?;
+                self.term.write_line(&msg).map_err(Report::new)?;
             }
             Mode::Running => {
-                let dur = self.duration.num_milliseconds();
-                self.lastrun = Instant::now();
-                let msg = if dur <= 3000 {
-                    let spinner = self.spinner();
-                    format!("=> {} running [{}]", self.lastrun, spinner)
-                } else {
-                    let header = format!("=> {} running ", self.lastrun);
-                    let (left, right, _) = self.proginfo(header.len() + 6);
-                    let marker = if right == 0 { "=" } else { ">" };
-                    format!(
-                        "{}[{:=>left$}{:right$}] [{}]",
-                        header,
-                        marker,
-                        "",
-                        self.spinner(),
-                        left = left,
-                        right = right
-                    )
-                };
-                self.term.write_line(&msg)?;
+                let spinner = self.spinner();
+                let msg = progbar_running(
+                    self.width(),
+                    &self.lastrun,
+                    &self.start,
+                    &self.duration,
+                    &self.refresh_delay,
+                    spinner,
+                )?;
+                self.term.write_line(&msg).map_err(Report::new)?;
             }
         }
         self.term.flush()?;
