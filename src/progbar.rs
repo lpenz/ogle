@@ -6,6 +6,8 @@ use color_eyre::Report;
 use color_eyre::Result;
 use console::Term;
 
+use crate::misc::term_clear_line;
+use crate::misc::term_width;
 use crate::timewrap::Duration;
 use crate::timewrap::Instant;
 
@@ -34,10 +36,11 @@ pub fn progbar_running(
     timestamp: &Instant,
     now: &Instant,
     start: &Instant,
-    duration: &Duration,
+    duration: &Option<Duration>,
     refresh: &Duration,
     spinner: char,
 ) -> Result<String> {
+    let duration = duration.unwrap_or_default();
     let dur = duration.num_milliseconds();
     let msg = if dur <= 3000 {
         format!("=> {} running [{}]", timestamp, spinner)
@@ -67,7 +70,7 @@ pub fn progbar_running(
             barsize
         };
         let right = barsize.saturating_sub(left);
-        let marker = if elapsed > *duration { "=" } else { ">" };
+        let marker = if elapsed > duration { "=" } else { ">" };
         format!(
             "{}[{:=>left$}{:right$}]{}",
             head,
@@ -132,14 +135,6 @@ impl Progbar {
         self.start = Instant::now();
     }
 
-    fn width(&self) -> usize {
-        if let Some((_, w)) = self.term.size_checked() {
-            w as usize
-        } else {
-            80
-        }
-    }
-
     fn spinner(&mut self) -> char {
         self.ispinner = (self.ispinner + 1) % 4;
         SPINNERS[self.ispinner]
@@ -147,8 +142,7 @@ impl Progbar {
 
     pub fn hide(&mut self) -> Result<()> {
         if self.shown {
-            self.term.move_cursor_up(1)?;
-            self.term.clear_line()?;
+            term_clear_line(&self.term)?;
             self.shown = false;
         }
         Ok(())
@@ -175,11 +169,11 @@ impl Progbar {
             Mode::Running => {
                 let spinner = self.spinner();
                 let msg = progbar_running(
-                    self.width(),
+                    term_width(&self.term),
                     &self.lastrun,
                     &Instant::now(),
                     &self.start,
-                    &self.duration,
+                    &Some(self.duration),
                     &self.refresh_delay,
                     spinner,
                 )?;
@@ -218,7 +212,7 @@ mod test {
             &now,
             &now,
             &start,
-            &Duration::seconds(3),
+            &Some(Duration::seconds(3)),
             &Duration::default(),
             'X',
         )
@@ -237,7 +231,7 @@ mod test {
                 &start,
                 &now,
                 &start,
-                &Duration::seconds(4),
+                &Some(Duration::seconds(4)),
                 &Duration::seconds(1),
                 'X',
             )
@@ -266,7 +260,7 @@ mod test {
                 &start,
                 &now,
                 &start,
-                &Duration::seconds(40),
+                &Some(Duration::seconds(40)),
                 &Duration::seconds(1),
                 'X',
             )
