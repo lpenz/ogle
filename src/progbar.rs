@@ -15,12 +15,13 @@ const SPINNERS: [char; 4] = ['/', '-', '\\', '|'];
 
 pub fn progbar_sleeping(
     timestamp: &Instant,
+    now: &Instant,
     start: &Instant,
     duration: &Duration,
 ) -> Result<String> {
     let msg = if duration.num_seconds() > 1 {
         let end = start + duration;
-        let left = &end - &Instant::now();
+        let left = &end - now;
         format!("=> {} sleeping for {}s", timestamp, left.num_seconds() + 1)
     } else {
         format!("=> {} sleeping", timestamp)
@@ -31,6 +32,7 @@ pub fn progbar_sleeping(
 pub fn progbar_running(
     width: usize,
     timestamp: &Instant,
+    now: &Instant,
     start: &Instant,
     duration: &Duration,
     refresh: &Duration,
@@ -45,13 +47,19 @@ pub fn progbar_running(
         let barsize = {
             let b = (dur / refresh.num_milliseconds()) as usize;
             let overhead = head.len() + tail.len() + 1;
+            debug_assert!(
+                width >= overhead,
+                "width {} not greater than overhead {}",
+                width,
+                overhead
+            );
             if b + overhead > width {
                 width - overhead
             } else {
                 b
             }
         };
-        let elapsed = start.elapsed();
+        let elapsed = now - start;
         let ratio = elapsed.num_milliseconds() as f32 / dur as f32;
         let left = if ratio < 1_f32 {
             ((barsize as f32) * ratio).ceil() as usize
@@ -59,7 +67,7 @@ pub fn progbar_running(
             barsize
         };
         let right = barsize.saturating_sub(left);
-        let marker = if right == 0 { "=" } else { ">" };
+        let marker = if elapsed > *duration { "=" } else { ">" };
         format!(
             "{}[{:=>left$}{:right$}]{}",
             head,
@@ -160,7 +168,8 @@ impl Progbar {
                 return Ok(());
             }
             Mode::Sleeping => {
-                let msg = progbar_sleeping(&self.lastrun, &self.start, &self.duration)?;
+                let msg =
+                    progbar_sleeping(&self.lastrun, &Instant::now(), &self.start, &self.duration)?;
                 self.term.write_line(&msg).map_err(Report::new)?;
             }
             Mode::Running => {
@@ -168,6 +177,7 @@ impl Progbar {
                 let msg = progbar_running(
                     self.width(),
                     &self.lastrun,
+                    &Instant::now(),
                     &self.start,
                     &self.duration,
                     &self.refresh_delay,
@@ -179,5 +189,98 @@ impl Progbar {
         self.term.flush()?;
         self.shown = true;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn sleeping() {
+        let start = Instant::epoch();
+        let now = &start + &Duration::milliseconds(1);
+        let string = progbar_sleeping(&now, &now, &start, &Duration::seconds(1)).unwrap();
+        assert_eq!(string, "=> 1970-01-01 00:00:00 sleeping");
+        let string = progbar_sleeping(&now, &now, &start, &Duration::seconds(10)).unwrap();
+        assert_eq!(string, "=> 1970-01-01 00:00:00 sleeping for 10s");
+        let now = &start + &Duration::seconds(10);
+        let string = progbar_sleeping(&now, &now, &start, &Duration::seconds(10)).unwrap();
+        assert_eq!(string, "=> 1970-01-01 00:00:10 sleeping for 1s");
+    }
+
+    #[test]
+    fn running_fast() {
+        let start = Instant::epoch();
+        let now = &start + &Duration::milliseconds(1);
+        let string = progbar_running(
+            80,
+            &now,
+            &now,
+            &start,
+            &Duration::seconds(3),
+            &Duration::default(),
+            'X',
+        )
+        .unwrap();
+        assert_eq!(string, "=> 1970-01-01 00:00:00 running [X]");
+    }
+
+    #[test]
+    fn running_shortbar() {
+        let start = Instant::epoch();
+        let f = |n| {
+            let now = &start + &Duration::milliseconds(1);
+            let now = &now + &Duration::seconds(n);
+            progbar_running(
+                80,
+                &start,
+                &now,
+                &start,
+                &Duration::seconds(4),
+                &Duration::seconds(1),
+                'X',
+            )
+            .unwrap()
+        };
+        let string = f(0);
+        assert_eq!(string, "=> 1970-01-01 00:00:00 running [>   ] [X]");
+        let string = f(1);
+        assert_eq!(string, "=> 1970-01-01 00:00:00 running [=>  ] [X]");
+        let string = f(2);
+        assert_eq!(string, "=> 1970-01-01 00:00:00 running [==> ] [X]");
+        let string = f(3);
+        assert_eq!(string, "=> 1970-01-01 00:00:00 running [===>] [X]");
+        let string = f(4);
+        assert_eq!(string, "=> 1970-01-01 00:00:00 running [====] [X]");
+    }
+
+    #[test]
+    fn running_longbar() {
+        let start = Instant::epoch();
+        let f = |n| {
+            let now = &start + &Duration::milliseconds(1);
+            let now = &now + &Duration::seconds(n);
+            progbar_running(
+                40,
+                &start,
+                &now,
+                &start,
+                &Duration::seconds(40),
+                &Duration::seconds(1),
+                'X',
+            )
+            .unwrap()
+        };
+        let string = f(0);
+        assert_eq!(string, "=> 1970-01-01 00:00:00 running [>   ] [X]");
+        let string = f(10);
+        assert_eq!(string, "=> 1970-01-01 00:00:00 running [=>  ] [X]");
+        let string = f(20);
+        assert_eq!(string, "=> 1970-01-01 00:00:00 running [==> ] [X]");
+        let string = f(30);
+        assert_eq!(string, "=> 1970-01-01 00:00:00 running [===>] [X]");
+        let string = f(40);
+        assert_eq!(string, "=> 1970-01-01 00:00:00 running [====] [X]");
     }
 }
