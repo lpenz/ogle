@@ -8,6 +8,7 @@ use std::error::Error;
 
 mod output_trait;
 
+mod output_sequence;
 mod output_simple;
 
 mod cli;
