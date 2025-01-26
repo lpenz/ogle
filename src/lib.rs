@@ -11,6 +11,7 @@ mod misc;
 
 mod output_trait;
 
+mod output_sequence;
 mod output_simple;
 
 mod cli;

@@ -41,29 +41,32 @@ pub fn progbar_running(
     spinner: char,
 ) -> Result<String> {
     let duration = duration.unwrap_or_default();
-    let dur = duration.num_milliseconds();
-    let msg = if dur <= 3000 {
+    let duration_millis = duration.num_milliseconds();
+    if duration_millis == 0 || refresh.num_milliseconds() == 0 {
+        return Ok(ofmt!(timestamp, "running [{}]", spinner));
+    }
+    let head = ofmt!(timestamp, "running ");
+    let tail = format!(" [{}]", spinner);
+    let barsize = {
+        let b = (duration_millis / refresh.num_milliseconds()) as usize;
+        let overhead = head.len() + tail.len() + 1;
+        debug_assert!(
+            width >= overhead,
+            "width {} not greater than overhead {}",
+            width,
+            overhead
+        );
+        if b + overhead > width {
+            width - overhead
+        } else {
+            b
+        }
+    };
+    let msg = if barsize <= 1 {
         ofmt!(timestamp, "running [{}]", spinner)
     } else {
-        let head = ofmt!(timestamp, "running ");
-        let tail = format!(" [{}]", spinner);
-        let barsize = {
-            let b = (dur / refresh.num_milliseconds()) as usize;
-            let overhead = head.len() + tail.len() + 1;
-            debug_assert!(
-                width >= overhead,
-                "width {} not greater than overhead {}",
-                width,
-                overhead
-            );
-            if b + overhead > width {
-                width - overhead
-            } else {
-                b
-            }
-        };
         let elapsed = now - start;
-        let ratio = elapsed.num_milliseconds() as f32 / dur as f32;
+        let ratio = elapsed.num_milliseconds() as f32 / duration_millis as f32;
         let left = if ratio < 1_f32 {
             ((barsize as f32) * ratio).ceil() as usize
         } else {
