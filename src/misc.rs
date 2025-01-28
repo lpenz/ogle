@@ -5,6 +5,8 @@
 use color_eyre::Result;
 use console::Term;
 
+use crate::timewrap::Instant;
+
 pub fn term_width(term: &Term) -> usize {
     if let Some((_, w)) = term.size_checked() {
         w as usize
@@ -17,4 +19,14 @@ pub fn term_clear_line(term: &Term) -> Result<()> {
     term.move_cursor_up(1)?;
     term.clear_line()?;
     Ok(())
+}
+
+pub fn ofmt_helper(timestamp: &Instant, line: &str) -> String {
+    format!("=> {} {}", timestamp, line)
+}
+
+macro_rules! ofmt {
+    ($timestamp: expr, $($t:tt)*) => {{
+        crate::misc::ofmt_helper($timestamp, &format!($($t)*))
+    }};
 }

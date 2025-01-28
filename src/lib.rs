@@ -6,12 +6,14 @@ use clap::Parser;
 
 use std::error::Error;
 
+#[macro_use]
+mod misc;
+
 mod output_trait;
 
 mod output_simple;
 
 mod cli;
-mod misc;
 mod orchestrator;
 mod progbar;
 mod runner;

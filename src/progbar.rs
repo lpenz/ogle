@@ -24,9 +24,9 @@ pub fn progbar_sleeping(
     let msg = if duration.num_seconds() > 1 {
         let end = start + duration;
         let left = &end - now;
-        format!("=> {} sleeping for {}s", timestamp, left.num_seconds() + 1)
+        ofmt!(timestamp, "sleeping for {}s", left.num_seconds() + 1)
     } else {
-        format!("=> {} sleeping", timestamp)
+        ofmt!(timestamp, "sleeping")
     };
     Ok(msg)
 }
@@ -43,9 +43,9 @@ pub fn progbar_running(
     let duration = duration.unwrap_or_default();
     let dur = duration.num_milliseconds();
     let msg = if dur <= 3000 {
-        format!("=> {} running [{}]", timestamp, spinner)
+        ofmt!(timestamp, "running [{}]", spinner)
     } else {
-        let head = format!("=> {} running ", timestamp);
+        let head = ofmt!(timestamp, "running ");
         let tail = format!(" [{}]", spinner);
         let barsize = {
             let b = (dur / refresh.num_milliseconds()) as usize;
