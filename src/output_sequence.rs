@@ -39,6 +39,26 @@ pub struct OutputSequence {
     iline: usize,
     already_different: bool,
     ispinner: usize,
+    commandline: String,
+}
+
+impl Default for OutputSequence {
+    fn default() -> Self {
+        Self {
+            term: Term::stdout(),
+            width: 80,
+            state: Default::default(),
+            start: Default::default(),
+            sleep_duration: Default::default(),
+            run_duration: None,
+            refresh: Duration::milliseconds(250),
+            lines: vec![],
+            iline: 0,
+            already_different: true,
+            ispinner: 0,
+            commandline: Default::default(),
+        }
+    }
 }
 
 impl OutputSequence {
@@ -46,18 +66,14 @@ impl OutputSequence {
     pub fn new(cli: &Cli) -> Self {
         let term = Term::stdout();
         let width = term_width(&term);
+        let commandline = cli.command.join(" ");
         Self {
             term,
             width,
-            state: State::default(),
             start: Instant::now(),
             sleep_duration: Duration::seconds(cli.period as i64),
-            run_duration: None,
-            refresh: Duration::milliseconds(250),
-            lines: vec![],
-            iline: 0,
-            already_different: true,
-            ispinner: 0,
+            commandline,
+            ..Default::default()
         }
     }
 
@@ -97,7 +113,8 @@ impl Output for OutputSequence {
         let now = Instant::now();
         if self.run_duration.is_none() {
             // First execution
-            self.write_line_scroll(&ofmt!(&now, "first execution"))?;
+            self.write_line(&ofmt!(&now, "first execution"))?;
+            self.write_line_scroll(&format!("+ {}", self.commandline))?;
         }
         self.state = State::Running;
         self.start = now;
@@ -132,6 +149,7 @@ impl Output for OutputSequence {
         term_clear_line(&self.term)?;
         if !self.already_different {
             self.write_line(&ofmt!(&Instant::now(), "changed"))?;
+            self.write_line(&format!("+ {}", self.commandline))?;
             self.lines.truncate(self.iline - 1);
             self.write_all_lines()?;
             self.already_different = true;

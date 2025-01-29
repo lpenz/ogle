@@ -21,6 +21,12 @@ impl Instant {
     }
 }
 
+impl Default for Instant {
+    fn default() -> Self {
+        Self::epoch()
+    }
+}
+
 impl fmt::Display for Instant {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // Use UTC in tests, locatime in prod
@@ -46,7 +52,7 @@ impl std::ops::Sub for &Instant {
     }
 }
 
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Duration(chrono::Duration);
 
 impl Duration {
@@ -64,6 +70,12 @@ impl Duration {
 
     pub const fn num_milliseconds(&self) -> i64 {
         self.0.num_milliseconds()
+    }
+}
+
+impl Default for Duration {
+    fn default() -> Self {
+        Self::milliseconds(1)
     }
 }
 
