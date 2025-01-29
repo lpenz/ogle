@@ -22,7 +22,7 @@ pub fn term_clear_line(term: &Term) -> Result<()> {
 }
 
 pub fn ofmt_helper(timestamp: &Instant, line: &str) -> String {
-    format!("=> {} {}", timestamp, line)
+    format!("<O> {} {}", timestamp, line)
 }
 
 macro_rules! ofmt {

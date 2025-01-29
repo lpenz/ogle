@@ -4,7 +4,7 @@
 [![crates.io](https://img.shields.io/crates/v/ogle)](https://crates.io/crates/ogle)
 [![packagecloud](https://img.shields.io/badge/deb-packagecloud.io-844fec.svg)](https://packagecloud.io/app/lpenz/debian/search?q=ogle)
 
-# ogle
+# `<O>` ogle
 
 **ogle** is a program that runs the given command-line periodically,
 showing the output only when it is different than the last.
