@@ -17,14 +17,15 @@ mod output_simple;
 mod cli;
 mod orchestrator;
 mod progbar;
-mod runner;
 mod stream;
 mod timewrap;
 
 #[tokio::main]
 pub async fn main() -> Result<(), Box<dyn Error>> {
+    env_logger::init();
     color_eyre::install()?;
     let args = cli::Cli::parse();
-    runner::run_loop(&args).await?;
+    let output = output_sequence::OutputSequence::new(&args);
+    orchestrator::run(&args, output).await?;
     Ok(())
 }
