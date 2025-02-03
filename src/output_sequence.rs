@@ -13,8 +13,8 @@ use crate::misc::term_clear_line;
 use crate::misc::term_width;
 use crate::output_trait::Output;
 use crate::progbar;
-use crate::timewrap::Duration;
-use crate::timewrap::Instant;
+use crate::time_wrapper::Duration;
+use crate::time_wrapper::Instant;
 
 const SPINNERS: [char; 4] = ['/', '-', '\\', '|'];
 

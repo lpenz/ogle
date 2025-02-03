@@ -8,7 +8,7 @@ use std::process::ExitStatus;
 use tracing::instrument;
 
 use crate::output_trait::Output;
-use crate::timewrap::Instant;
+use crate::time_wrapper::Instant;
 
 #[derive(Debug)]
 pub struct OutputSimple {

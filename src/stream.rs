@@ -10,7 +10,7 @@ use tokio_stream::wrappers::IntervalStream;
 use tokio_stream::StreamExt;
 
 use crate::cli::Cli;
-use crate::timewrap::Duration;
+use crate::time_wrapper::Duration;
 
 #[derive(Debug)]
 pub enum StreamItem {

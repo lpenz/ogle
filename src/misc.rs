@@ -5,7 +5,7 @@
 use color_eyre::Result;
 use console::Term;
 
-use crate::timewrap::Instant;
+use crate::time_wrapper::Instant;
 
 pub fn term_width(term: &Term) -> usize {
     if let Some((_, w)) = term.size_checked() {
