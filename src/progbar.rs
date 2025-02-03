@@ -4,8 +4,8 @@
 
 use color_eyre::Result;
 
-use crate::timewrap::Duration;
-use crate::timewrap::Instant;
+use crate::time_wrapper::Duration;
+use crate::time_wrapper::Instant;
 
 // Basic functions:
 

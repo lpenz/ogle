@@ -14,8 +14,8 @@ use crate::cli::Cli;
 use crate::output_trait::Output;
 use crate::stream::stream_create;
 use crate::stream::StreamItem;
-use crate::timewrap::Duration;
-use crate::timewrap::Instant;
+use crate::time_wrapper::Duration;
+use crate::time_wrapper::Instant;
 
 const REFRESH_DELAY: Duration = Duration::milliseconds(250);
 
