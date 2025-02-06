@@ -2,28 +2,37 @@
 // This file is subject to the terms and conditions defined in
 // file 'LICENSE', which is part of this source code package.
 
+//! Wrapper for time [`Instant`] and [`Duration`] abstractions.
+//!
+//! We have a couple of options when choosing a time create in rust -
+//! so creating a wrapper module makes sense, as it allows us to
+//! change the underlying crate while minimizing changes to users.
+//!
+//! We use [`chrono`] as the wrapped crate at the moment.
 use std::fmt;
 
+// Instant ///////////////////////////////////////////////////////////
+
+type InstantInner = chrono::DateTime<chrono::Utc>;
+
+/// A specific instant in time.
+///
+/// Wraps [`chrono::DateTime<chrono::Utc>`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Instant(chrono::DateTime<chrono::Utc>);
+pub struct Instant(InstantInner);
 
 impl Instant {
-    pub fn now() -> Self {
-        Self(chrono::offset::Utc::now())
-    }
-
-    pub fn epoch() -> Self {
-        Instant(chrono::DateTime::UNIX_EPOCH)
-    }
-
-    pub fn elapsed(&self) -> Duration {
-        &Instant::now() - self
+    #[cfg(test)]
+    pub fn incr(&mut self) -> Self {
+        let me = *self;
+        *self = &me + &Duration::seconds(1);
+        me
     }
 }
 
 impl Default for Instant {
     fn default() -> Self {
-        Self::epoch()
+        Instant(chrono::DateTime::UNIX_EPOCH)
     }
 }
 
@@ -35,6 +44,12 @@ impl fmt::Display for Instant {
         #[cfg(test)]
         let dt = self.0;
         write!(f, "{}", dt.format("%Y-%m-%d %H:%M:%S"))
+    }
+}
+
+impl From<InstantInner> for Instant {
+    fn from(dt: InstantInner) -> Self {
+        Self(dt)
     }
 }
 
@@ -52,22 +67,43 @@ impl std::ops::Sub for &Instant {
     }
 }
 
+// Duration //////////////////////////////////////////////////////////
+
+/// A time duration - the difference between two [`Instant`]s.
+///
+/// Wraps [`chrono::Duration`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Duration(chrono::Duration);
 
 impl Duration {
+    /// An absurd duration (a millenia) that is safe to add/subtract
+    /// without overflowing the inner type.
+    pub const INFINITE: Self = Self::seconds(3600 * 24 * 365 * 1000);
+
+    /// Makes a new Duration with the given number of seconds.
+    ///
+    /// Wraps [`chrono::Duration::seconds`].
     pub const fn seconds(value: i64) -> Self {
         Self(chrono::Duration::seconds(value))
     }
 
+    /// Makes a new Duration with the given number of milliseconds.
+    ///
+    /// Wraps [`chrono::Duration::milliseconds`].
     pub const fn milliseconds(value: i64) -> Self {
         Self(chrono::Duration::milliseconds(value))
     }
 
+    /// Returns the total number of whole seconds in the `Duration`.
+    ///
+    /// Wraps [`chrono::Duration::num_seconds`].
     pub const fn num_seconds(&self) -> i64 {
         self.0.num_seconds()
     }
 
+    /// Returns the total number of whole seconds in the `Duration`.
+    ///
+    /// Wraps [`chrono::Duration::num_milliseconds`].
     pub const fn num_milliseconds(&self) -> i64 {
         self.0.num_milliseconds()
     }
@@ -75,7 +111,7 @@ impl Duration {
 
 impl Default for Duration {
     fn default() -> Self {
-        Self::milliseconds(1)
+        Self::milliseconds(0)
     }
 }
 
@@ -85,16 +121,27 @@ impl From<Duration> for std::time::Duration {
     }
 }
 
+impl From<Duration> for tokio::time::Interval {
+    fn from(duration: Duration) -> Self {
+        tokio::time::interval(duration.into())
+    }
+}
+
+// Tests /////////////////////////////////////////////////////////////
+
 #[cfg(test)]
 mod test {
     use super::*;
 
+    use crate::sys::SysApi;
+    use crate::sys::SysReal;
+
     #[test]
     fn basic_instant() {
         let ten = Duration::seconds(10);
-        let now = Instant::now();
-        assert!(now.elapsed() < ten);
-        let now2 = Instant::now();
+        let sys = SysReal::default();
+        let now = sys.now();
+        let now2 = sys.now();
         assert!(&now2 - &now < ten);
         let now3 = &now2 + &ten;
         assert!(&now3 > &now2);
@@ -102,7 +149,7 @@ mod test {
 
     #[test]
     fn print_instant() {
-        let epoch = Instant::epoch();
+        let epoch = Instant::default();
         let string = format!("{}", epoch);
         // Let's just test the start, as the time can vary with the local timezone.
         assert_eq!(string, "1970-01-01 00:00:00");
@@ -112,5 +159,9 @@ mod test {
     fn basic_duration() {
         assert_eq!(Duration::seconds(10).num_seconds(), 10);
         assert_eq!(Duration::milliseconds(10).num_milliseconds(), 10);
+        assert_eq!(
+            &Instant::default() + &Duration::default(),
+            Instant::default()
+        );
     }
 }
