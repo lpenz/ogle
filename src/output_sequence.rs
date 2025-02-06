@@ -13,6 +13,7 @@ use crate::misc::term_clear_line;
 use crate::misc::term_width;
 use crate::output_trait::Output;
 use crate::progbar;
+use crate::sys_api::SysApi;
 use crate::time_wrapper::Duration;
 use crate::time_wrapper::Instant;
 
@@ -63,14 +64,14 @@ impl Default for OutputSequence {
 
 impl OutputSequence {
     #[instrument(level = "debug")]
-    pub fn new(cli: &Cli) -> Self {
+    pub fn new<Sys: SysApi + 'static>(sys: &Sys, cli: &Cli) -> Self {
         let term = Term::stdout();
         let width = term_width(&term);
         let commandline = cli.command.join(" ");
         Self {
             term,
             width,
-            start: Instant::now(),
+            start: sys.now(),
             sleep_duration: Duration::seconds(cli.period as i64),
             commandline,
             ..Default::default()
@@ -109,8 +110,8 @@ impl OutputSequence {
 
 impl Output for OutputSequence {
     #[instrument(level = "debug", fields(self=?self.state))]
-    fn run_start(&mut self) -> Result<()> {
-        let now = Instant::now();
+    fn run_start<Sys: SysApi + 'static>(&mut self, sys: &Sys) -> Result<()> {
+        let now = sys.now();
         if self.run_duration.is_none() {
             // First execution
             self.write_line(&ofmt!(&now, "first execution"))?;
@@ -122,33 +123,33 @@ impl Output for OutputSequence {
         // running the program.
         self.width = term_width(&self.term);
         self.iline = 0;
-        self.tick()?;
+        self.tick(sys)?;
         Ok(())
     }
 
     #[instrument(level = "debug", skip(self))]
-    fn run_end(&mut self, exitstatus: &ExitStatus) -> Result<()> {
-        let now = Instant::now();
+    fn run_end<Sys: SysApi + 'static>(&mut self, sys: &Sys, exitstatus: &ExitStatus) -> Result<()> {
+        let now = sys.now();
         self.run_duration = Some(&now - &self.start);
         self.state = State::Sleeping;
         self.start = now;
         self.iline = 0;
         self.already_different = false;
-        self.tick()?;
+        self.tick(sys)?;
         Ok(())
     }
 
     #[instrument(level = "debug", skip(self))]
-    fn out_line(&mut self, line: String) -> Result<()> {
+    fn out_line<Sys: SysApi + 'static>(&mut self, sys: &Sys, line: String) -> Result<()> {
         self.iline += 1;
         if self.iline <= self.lines.len() && self.lines[self.iline - 1] == line {
             // Same as last execution, keep going
-            return self.tick();
+            return self.tick(sys);
         }
         // Something is different
         term_clear_line(&self.term)?;
         if !self.already_different {
-            self.write_line(&ofmt!(&Instant::now(), "changed"))?;
+            self.write_line(&ofmt!(&sys.now(), "changed"))?;
             self.write_line(&format!("+ {}", self.commandline))?;
             self.lines.truncate(self.iline - 1);
             self.write_all_lines()?;
@@ -156,18 +157,18 @@ impl Output for OutputSequence {
         }
         self.write_line_scroll(&line)?;
         self.lines.push(line);
-        self.tick()?;
+        self.tick(sys)?;
         Ok(())
     }
 
     #[instrument(level = "debug", skip(self))]
-    fn err_line(&mut self, line: String) -> Result<()> {
-        self.out_line(line)
+    fn err_line<Sys: SysApi + 'static>(&mut self, sys: &Sys, line: String) -> Result<()> {
+        self.out_line(sys, line)
     }
 
     // #[instrument(level = "debug", skip(self))]
-    fn tick(&mut self) -> Result<()> {
-        let now = Instant::now();
+    fn tick<Sys: SysApi + 'static>(&mut self, sys: &Sys) -> Result<()> {
+        let now = sys.now();
         match self.state {
             State::Starting => {}
             State::Sleeping => {

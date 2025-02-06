@@ -20,12 +20,17 @@ mod progbar;
 mod stream;
 mod time_wrapper;
 
+mod sys_api;
+mod sys_real;
+use sys_real::Sys;
+
 #[tokio::main]
 pub async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     color_eyre::install()?;
     let args = cli::Cli::parse();
-    let output = output_sequence::OutputSequence::new(&args);
-    orchestrator::run(&args, output).await?;
+    let sys = Sys::default();
+    let output = output_sequence::OutputSequence::new(&sys, &args);
+    orchestrator::run(&sys, &args, output).await?;
     Ok(())
 }
