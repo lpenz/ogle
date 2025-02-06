@@ -4,20 +4,14 @@
 
 use std::fmt;
 
+type Inner = chrono::DateTime<chrono::Utc>;
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Instant(chrono::DateTime<chrono::Utc>);
+pub struct Instant(Inner);
 
 impl Instant {
-    pub fn now() -> Self {
-        Self(chrono::offset::Utc::now())
-    }
-
     pub fn epoch() -> Self {
         Instant(chrono::DateTime::UNIX_EPOCH)
-    }
-
-    pub fn elapsed(&self) -> Duration {
-        &Instant::now() - self
     }
 }
 
@@ -35,6 +29,12 @@ impl fmt::Display for Instant {
         #[cfg(test)]
         let dt = self.0;
         write!(f, "{}", dt.format("%Y-%m-%d %H:%M:%S"))
+    }
+}
+
+impl From<Inner> for Instant {
+    fn from(dt: Inner) -> Self {
+        Self(dt)
     }
 }
 
@@ -89,12 +89,14 @@ impl From<Duration> for std::time::Duration {
 mod test {
     use super::*;
 
+    use crate::sys_real::Sys;
+
     #[test]
     fn basic_instant() {
         let ten = Duration::seconds(10);
-        let now = Instant::now();
-        assert!(now.elapsed() < ten);
-        let now2 = Instant::now();
+        let sys = Sys::default();
+        let now = sys.now();
+        let now2 = sys.now();
         assert!(&now2 - &now < ten);
         let now3 = &now2 + &ten;
         assert!(&now3 > &now2);

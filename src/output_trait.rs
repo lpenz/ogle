@@ -6,11 +6,13 @@ use color_eyre::Result;
 use mockall::automock;
 use std::process::ExitStatus;
 
+use crate::sys_api::SysApi;
+
 #[automock]
 pub trait Output {
-    fn run_start(&mut self) -> Result<()>;
-    fn run_end(&mut self, exitstatus: &ExitStatus) -> Result<()>;
-    fn out_line(&mut self, line: String) -> Result<()>;
-    fn err_line(&mut self, line: String) -> Result<()>;
-    fn tick(&mut self) -> Result<()>;
+    fn run_start<Sys: SysApi + 'static>(&mut self, sys: &Sys) -> Result<()>;
+    fn run_end<Sys: SysApi + 'static>(&mut self, sys: &Sys, exitstatus: &ExitStatus) -> Result<()>;
+    fn out_line<Sys: SysApi + 'static>(&mut self, sys: &Sys, line: String) -> Result<()>;
+    fn err_line<Sys: SysApi + 'static>(&mut self, sys: &Sys, line: String) -> Result<()>;
+    fn tick<Sys: SysApi + 'static>(&mut self, sys: &Sys) -> Result<()>;
 }
