@@ -42,7 +42,7 @@ where
                 output.tick(sys)?;
             }
             StreamItem::Done(sts) => {
-                output.run_end(sys, &sts)?;
+                output.run_end(sys, sts)?;
                 return Ok(Some(sts));
             }
             StreamItem::Err(e) => return Err(eyre!(e)),
