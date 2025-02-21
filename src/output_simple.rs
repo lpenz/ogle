@@ -44,7 +44,7 @@ impl Output for OutputSimple {
     }
 
     #[instrument(level = "debug", skip(self))]
-    fn run_end<Sys: SysApi>(&mut self, sys: &Sys, exitstatus: &ExitStatus) -> Result<()> {
+    fn run_end<Sys: SysApi>(&mut self, sys: &Sys, exitstatus: ExitStatus) -> Result<()> {
         let msg = format!("[ogle] {} execution ended with {:?}", sys.now(), exitstatus);
         self.term.write_line(&msg)?;
         Ok(())

@@ -5,7 +5,7 @@
 use crate::sys_api::SysApi;
 use crate::time_wrapper::Instant;
 
-/// SysApi implementation of the real environment
+/// [`SysApi`] implementation of the real environment
 #[derive(Default, Debug, Clone)]
 pub struct Sys {}
 

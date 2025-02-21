@@ -48,16 +48,16 @@ impl Default for OutputSequence {
         Self {
             term: Term::stdout(),
             width: 80,
-            state: Default::default(),
-            start: Default::default(),
-            sleep_duration: Default::default(),
+            state: State::default(),
+            start: Instant::default(),
+            sleep_duration: Duration::default(),
             run_duration: None,
             refresh: Duration::milliseconds(250),
             lines: vec![],
             iline: 0,
             already_different: true,
             ispinner: 0,
-            commandline: Default::default(),
+            commandline: String::default(),
         }
     }
 }
@@ -72,7 +72,7 @@ impl OutputSequence {
             term,
             width,
             start: sys.now(),
-            sleep_duration: Duration::seconds(cli.period as i64),
+            sleep_duration: Duration::seconds(i64::from(cli.period)),
             commandline,
             ..Default::default()
         }
@@ -128,7 +128,7 @@ impl Output for OutputSequence {
     }
 
     #[instrument(level = "debug", skip(self))]
-    fn run_end<Sys: SysApi + 'static>(&mut self, sys: &Sys, exitstatus: &ExitStatus) -> Result<()> {
+    fn run_end<Sys: SysApi + 'static>(&mut self, sys: &Sys, exitstatus: ExitStatus) -> Result<()> {
         let now = sys.now();
         self.run_duration = Some(&now - &self.start);
         self.state = State::Sleeping;
@@ -178,7 +178,7 @@ impl Output for OutputSequence {
                     &now,
                     &self.start,
                     &self.sleep_duration,
-                )?)?;
+                ))?;
             }
             State::Running => {
                 term_clear_line(&self.term)?;
@@ -188,7 +188,7 @@ impl Output for OutputSequence {
                     &now,
                     &now,
                     &self.start,
-                    &self.run_duration,
+                    self.run_duration.as_ref(),
                     &self.refresh,
                     spinner,
                 )?)?;

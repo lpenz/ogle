@@ -14,15 +14,14 @@ pub fn progbar_sleeping(
     now: &Instant,
     start: &Instant,
     duration: &Duration,
-) -> Result<String> {
-    let msg = if duration.num_seconds() > 1 {
+) -> String {
+    if duration.num_seconds() > 1 {
         let end = start + duration;
         let left = &end - now;
         ofmt!(timestamp, "sleeping for {}s", left.num_seconds() + 1)
     } else {
         ofmt!(timestamp, "sleeping")
-    };
-    Ok(msg)
+    }
 }
 
 pub fn progbar_running(
@@ -30,25 +29,23 @@ pub fn progbar_running(
     timestamp: &Instant,
     now: &Instant,
     start: &Instant,
-    duration: &Option<Duration>,
+    duration: Option<&Duration>,
     refresh: &Duration,
     spinner: char,
 ) -> Result<String> {
-    let duration = duration.unwrap_or_default();
+    let duration = duration.copied().unwrap_or_default();
     let duration_millis = duration.num_milliseconds();
     if duration_millis == 0 || refresh.num_milliseconds() == 0 {
         return Ok(ofmt!(timestamp, "running [{}]", spinner));
     }
     let head = ofmt!(timestamp, "running ");
-    let tail = format!(" [{}]", spinner);
+    let tail = format!(" [{spinner}]");
     let barsize = {
-        let b = (duration_millis / refresh.num_milliseconds()) as usize;
+        let b = usize::try_from(duration_millis / refresh.num_milliseconds())?;
         let overhead = head.len() + tail.len() + 1;
         debug_assert!(
             width >= overhead,
-            "width {} not greater than overhead {}",
-            width,
-            overhead
+            "width {width} not greater than overhead {overhead}",
         );
         if b + overhead > width {
             width - overhead
@@ -56,7 +53,7 @@ pub fn progbar_running(
             b
         }
     };
-    let msg = if barsize <= 1 {
+    Ok(if barsize <= 1 {
         ofmt!(timestamp, "running [{}]", spinner)
     } else {
         let elapsed = now - start;
@@ -77,6 +74,5 @@ pub fn progbar_running(
             left = left,
             right = right
         )
-    };
-    Ok(msg)
+    })
 }
