@@ -3,14 +3,10 @@
 // file 'LICENSE', which is part of this source code package.
 
 use color_eyre::Result;
-use console::Term;
-use std::io::Write;
 use std::process::ExitStatus;
 use tracing::instrument;
 
 use crate::cli::Cli;
-use crate::misc::term_clear_line;
-use crate::misc::term_width;
 use crate::output_trait::Output;
 use crate::progbar;
 use crate::sys_api::SysApi;
@@ -29,7 +25,6 @@ pub enum State {
 
 #[derive(Debug)]
 pub struct OutputSequence {
-    term: Term,
     width: usize,
     state: State,
     start: Instant,
@@ -46,7 +41,6 @@ pub struct OutputSequence {
 impl Default for OutputSequence {
     fn default() -> Self {
         Self {
-            term: Term::stdout(),
             width: 80,
             state: State::default(),
             start: Instant::default(),
@@ -65,11 +59,9 @@ impl Default for OutputSequence {
 impl OutputSequence {
     #[instrument(level = "debug")]
     pub fn new<Sys: SysApi + 'static>(sys: &Sys, cli: &Cli) -> Self {
-        let term = Term::stdout();
-        let width = term_width(&term);
+        let width = sys.width();
         let commandline = cli.command.join(" ");
         Self {
-            term,
             width,
             start: sys.now(),
             sleep_duration: Duration::seconds(i64::from(cli.period)),
@@ -78,25 +70,11 @@ impl OutputSequence {
         }
     }
 
-    fn write_line(&mut self, line: &str) -> Result<()> {
-        self.term.write_all(line.as_bytes())?;
-        self.term.write_all(b"\n")?;
-        Ok(())
-    }
-
-    fn write_line_scroll(&mut self, line: &str) -> Result<()> {
-        self.write_line(line)?;
-        self.term.write_all(b"\n")?;
-        self.term.flush()?;
-        Ok(())
-    }
-
-    fn write_all_lines(&mut self) -> Result<()> {
+    fn log_all_lines<Sys: SysApi + 'static>(&mut self, sys: &mut Sys) -> Result<()> {
         let mut lines = std::mem::take(&mut self.lines);
         for line in &lines {
-            self.write_line(line)?;
+            sys.log_line(line)?;
         }
-        self.term.flush()?;
         self.lines = std::mem::take(&mut lines);
         Ok(())
     }
@@ -110,25 +88,29 @@ impl OutputSequence {
 
 impl Output for OutputSequence {
     #[instrument(level = "debug", fields(self=?self.state))]
-    fn run_start<Sys: SysApi + 'static>(&mut self, sys: &Sys) -> Result<()> {
+    fn run_start<Sys: SysApi + 'static>(&mut self, sys: &mut Sys) -> Result<()> {
         let now = sys.now();
         if self.run_duration.is_none() {
             // First execution
-            self.write_line(&ofmt!(&now, "first execution"))?;
-            self.write_line_scroll(&format!("+ {}", self.commandline))?;
+            sys.log_line(&ofmt!(&now, "first execution"))?;
+            sys.log_line(&format!("+ {}", self.commandline))?;
         }
         self.state = State::Running;
         self.start = now;
         // Let's refresh the terminal width every time we start
         // running the program.
-        self.width = term_width(&self.term);
+        self.width = sys.width();
         self.iline = 0;
         self.tick(sys)?;
         Ok(())
     }
 
     #[instrument(level = "debug", skip(self))]
-    fn run_end<Sys: SysApi + 'static>(&mut self, sys: &Sys, exitstatus: ExitStatus) -> Result<()> {
+    fn run_end<Sys: SysApi + 'static>(
+        &mut self,
+        sys: &mut Sys,
+        exitstatus: ExitStatus,
+    ) -> Result<()> {
         let now = sys.now();
         self.run_duration = Some(&now - &self.start);
         self.state = State::Sleeping;
@@ -140,40 +122,38 @@ impl Output for OutputSequence {
     }
 
     #[instrument(level = "debug", skip(self))]
-    fn out_line<Sys: SysApi + 'static>(&mut self, sys: &Sys, line: String) -> Result<()> {
+    fn out_line<Sys: SysApi + 'static>(&mut self, sys: &mut Sys, line: String) -> Result<()> {
         self.iline += 1;
         if self.iline <= self.lines.len() && self.lines[self.iline - 1] == line {
             // Same as last execution, keep going
             return self.tick(sys);
         }
         // Something is different
-        term_clear_line(&self.term)?;
         if !self.already_different {
-            self.write_line(&ofmt!(&sys.now(), "changed"))?;
-            self.write_line(&format!("+ {}", self.commandline))?;
+            sys.log_line(&ofmt!(&sys.now(), "changed"))?;
+            sys.log_line(&format!("+ {}", self.commandline))?;
             self.lines.truncate(self.iline - 1);
-            self.write_all_lines()?;
+            self.log_all_lines(sys)?;
             self.already_different = true;
         }
-        self.write_line_scroll(&line)?;
+        sys.log_line(&line)?;
         self.lines.push(line);
         self.tick(sys)?;
         Ok(())
     }
 
     #[instrument(level = "debug", skip(self))]
-    fn err_line<Sys: SysApi + 'static>(&mut self, sys: &Sys, line: String) -> Result<()> {
+    fn err_line<Sys: SysApi + 'static>(&mut self, sys: &mut Sys, line: String) -> Result<()> {
         self.out_line(sys, line)
     }
 
     // #[instrument(level = "debug", skip(self))]
-    fn tick<Sys: SysApi + 'static>(&mut self, sys: &Sys) -> Result<()> {
+    fn tick<Sys: SysApi + 'static>(&mut self, sys: &mut Sys) -> Result<()> {
         let now = sys.now();
         match self.state {
             State::Starting => {}
             State::Sleeping => {
-                term_clear_line(&self.term)?;
-                self.term.write_line(&progbar::progbar_sleeping(
+                sys.update_status(&progbar::progbar_sleeping(
                     &self.start,
                     &now,
                     &self.start,
@@ -181,9 +161,8 @@ impl Output for OutputSequence {
                 ))?;
             }
             State::Running => {
-                term_clear_line(&self.term)?;
                 let spinner = self.spinner_get();
-                self.term.write_line(&progbar::progbar_running(
+                sys.update_status(&progbar::progbar_running(
                     self.width,
                     &now,
                     &now,

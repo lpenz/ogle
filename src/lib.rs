@@ -29,8 +29,8 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     color_eyre::install()?;
     let args = cli::Cli::parse();
-    let sys = Sys::default();
+    let mut sys = Sys::default();
     let output = output_sequence::OutputSequence::new(&sys, &args);
-    orchestrator::run(&sys, &args, output).await?;
+    orchestrator::run(&mut sys, &args, output).await?;
     Ok(())
 }

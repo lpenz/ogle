@@ -10,9 +10,13 @@ use crate::sys_api::SysApi;
 
 #[automock]
 pub trait Output {
-    fn run_start<Sys: SysApi + 'static>(&mut self, sys: &Sys) -> Result<()>;
-    fn run_end<Sys: SysApi + 'static>(&mut self, sys: &Sys, exitstatus: ExitStatus) -> Result<()>;
-    fn out_line<Sys: SysApi + 'static>(&mut self, sys: &Sys, line: String) -> Result<()>;
-    fn err_line<Sys: SysApi + 'static>(&mut self, sys: &Sys, line: String) -> Result<()>;
-    fn tick<Sys: SysApi + 'static>(&mut self, sys: &Sys) -> Result<()>;
+    fn run_start<Sys: SysApi + 'static>(&mut self, sys: &mut Sys) -> Result<()>;
+    fn run_end<Sys: SysApi + 'static>(
+        &mut self,
+        sys: &mut Sys,
+        exitstatus: ExitStatus,
+    ) -> Result<()>;
+    fn out_line<Sys: SysApi + 'static>(&mut self, sys: &mut Sys, line: String) -> Result<()>;
+    fn err_line<Sys: SysApi + 'static>(&mut self, sys: &mut Sys, line: String) -> Result<()>;
+    fn tick<Sys: SysApi + 'static>(&mut self, sys: &mut Sys) -> Result<()>;
 }
