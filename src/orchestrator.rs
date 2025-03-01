@@ -21,7 +21,7 @@ const REFRESH_DELAY: Duration = Duration::milliseconds(250);
 
 #[instrument(level = "debug", skip_all)]
 pub async fn stream_task<Sys: SysApi + 'static, O, T>(
-    sys: &Sys,
+    sys: &mut Sys,
     output: &mut O,
     mut stream: T,
 ) -> Result<Option<ExitStatus>>
@@ -53,7 +53,7 @@ where
 
 #[instrument(level = "debug")]
 pub async fn run<Sys: SysApi + 'static, O: Output + std::fmt::Debug>(
-    sys: &Sys,
+    sys: &mut Sys,
     cli: &Cli,
     mut output: O,
 ) -> Result<()> {
@@ -90,18 +90,18 @@ mod tests {
         omock
             .expect_run_start()
             .times(1)
-            .returning(|_: &MockSysApi| Ok(()));
-        omock.expect_tick().returning(|_: &MockSysApi| Ok(()));
+            .returning(|_: &mut MockSysApi| Ok(()));
+        omock.expect_tick().returning(|_: &mut MockSysApi| Ok(()));
         omock
             .expect_run_end()
             .times(1)
-            .returning(|_: &MockSysApi, s| {
+            .returning(|_: &mut MockSysApi, s| {
                 assert!(s.success());
                 Ok(())
             });
         let cli = Cli::try_parse_from(["ogle", "-z", "--", "true"])?;
-        let sys = MockSysApi::default();
-        run(&sys, &cli, omock).await?;
+        let mut sys = MockSysApi::default();
+        run(&mut sys, &cli, omock).await?;
         Ok(())
     }
 
@@ -111,18 +111,18 @@ mod tests {
         omock
             .expect_run_start()
             .times(1)
-            .returning(|_: &MockSysApi| Ok(()));
-        omock.expect_tick().returning(|_: &MockSysApi| Ok(()));
+            .returning(|_: &mut MockSysApi| Ok(()));
+        omock.expect_tick().returning(|_: &mut MockSysApi| Ok(()));
         omock
             .expect_run_end()
             .times(1)
-            .returning(|_: &MockSysApi, s| {
+            .returning(|_: &mut MockSysApi, s| {
                 assert!(!s.success());
                 Ok(())
             });
         let cli = Cli::try_parse_from(["ogle", "-e", "--", "false"])?;
-        let sys = MockSysApi::default();
-        run(&sys, &cli, omock).await?;
+        let mut sys = MockSysApi::default();
+        run(&mut sys, &cli, omock).await?;
         Ok(())
     }
 }

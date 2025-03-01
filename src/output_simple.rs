@@ -35,7 +35,7 @@ impl OutputSimple {
 
 impl Output for OutputSimple {
     #[instrument(level = "debug", fields(self=?self.start))]
-    fn run_start<Sys: SysApi + 'static>(&mut self, sys: &Sys) -> Result<()> {
+    fn run_start<Sys: SysApi + 'static>(&mut self, sys: &mut Sys) -> Result<()> {
         let now = sys.now();
         self.start = Some(now);
         let msg = format!("[ogle] {} execution start", sys.now());
@@ -44,26 +44,26 @@ impl Output for OutputSimple {
     }
 
     #[instrument(level = "debug", skip(self))]
-    fn run_end<Sys: SysApi>(&mut self, sys: &Sys, exitstatus: ExitStatus) -> Result<()> {
+    fn run_end<Sys: SysApi>(&mut self, sys: &mut Sys, exitstatus: ExitStatus) -> Result<()> {
         let msg = format!("[ogle] {} execution ended with {:?}", sys.now(), exitstatus);
         self.term.write_line(&msg)?;
         Ok(())
     }
 
     #[instrument(level = "debug", skip(self))]
-    fn out_line<Sys: SysApi + 'static>(&mut self, sys: &Sys, line: String) -> Result<()> {
+    fn out_line<Sys: SysApi + 'static>(&mut self, sys: &mut Sys, line: String) -> Result<()> {
         self.term.write_line(&line)?;
         Ok(())
     }
 
     #[instrument(level = "debug", skip(self))]
-    fn err_line<Sys: SysApi + 'static>(&mut self, sys: &Sys, line: String) -> Result<()> {
+    fn err_line<Sys: SysApi + 'static>(&mut self, sys: &mut Sys, line: String) -> Result<()> {
         self.term.write_line(&line)?;
         Ok(())
     }
 
     // #[instrument(level = "debug", skip(self))]
-    fn tick<Sys: SysApi + 'static>(&mut self, _sys: &Sys) -> Result<()> {
+    fn tick<Sys: SysApi + 'static>(&mut self, _sys: &mut Sys) -> Result<()> {
         Ok(())
     }
 }
