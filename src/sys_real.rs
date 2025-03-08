@@ -11,12 +11,12 @@ use crate::time_wrapper::Instant;
 
 /// [`SysApi`] implementation of the real environment
 #[derive(Debug, Clone)]
-pub struct Sys {
+pub struct SysReal {
     term: Term,
     status_visible: bool,
 }
 
-impl Default for Sys {
+impl Default for SysReal {
     fn default() -> Self {
         Self {
             term: Term::stdout(),
@@ -25,7 +25,7 @@ impl Default for Sys {
     }
 }
 
-impl Sys {
+impl SysReal {
     pub fn now(&self) -> Instant {
         Instant::from(chrono::offset::Utc::now())
     }
@@ -47,7 +47,7 @@ impl Sys {
     }
 }
 
-impl SysApi for Sys {
+impl SysApi for SysReal {
     fn now(&self) -> Instant {
         self.now()
     }
