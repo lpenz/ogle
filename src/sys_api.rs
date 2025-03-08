@@ -5,20 +5,22 @@
 use enum_dispatch::enum_dispatch;
 
 use color_eyre::Result;
-use mockall::automock;
 
 use crate::sys_real::SysReal;
 use crate::time_wrapper::Instant;
+
+#[cfg(test)]
+use crate::sys_virtual::SysVirtual;
 
 #[enum_dispatch]
 #[derive(Debug)]
 pub enum Sys {
     SysReal,
-    MockSysApi,
+    #[cfg(test)]
+    SysVirtual,
 }
 
 #[enum_dispatch(Sys)]
-#[automock]
 pub trait SysApi: std::fmt::Debug {
     fn now(&self) -> Instant;
     fn width(&self) -> usize;

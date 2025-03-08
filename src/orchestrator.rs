@@ -78,7 +78,7 @@ mod tests {
     use super::*;
 
     use crate::output_trait::MockOutput;
-    use crate::sys_api::MockSysApi;
+    use crate::sys_virtual::SysVirtual;
     use clap::Parser;
 
     #[tokio::test]
@@ -94,7 +94,7 @@ mod tests {
             Ok(())
         });
         let cli = Cli::try_parse_from(["ogle", "-z", "--", "true"])?;
-        let mut sys = Sys::from(MockSysApi::default());
+        let mut sys = SysVirtual::default().into();
         run(&mut sys, &cli, OutputEnum::from(omock)).await?;
         Ok(())
     }
@@ -112,7 +112,7 @@ mod tests {
             Ok(())
         });
         let cli = Cli::try_parse_from(["ogle", "-e", "--", "false"])?;
-        let mut sys = Sys::from(MockSysApi::default());
+        let mut sys = SysVirtual::default().into();
         run(&mut sys, &cli, OutputEnum::from(omock)).await?;
         Ok(())
     }
