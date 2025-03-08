@@ -9,6 +9,7 @@ use tracing::instrument;
 use crate::cli::Cli;
 use crate::output_trait::Output;
 use crate::progbar;
+use crate::sys_api::Sys;
 use crate::sys_api::SysApi;
 use crate::time_wrapper::Duration;
 use crate::time_wrapper::Instant;
@@ -58,7 +59,7 @@ impl Default for OutputSequence {
 
 impl OutputSequence {
     #[instrument(level = "debug")]
-    pub fn new<Sys: SysApi + 'static>(sys: &Sys, cli: &Cli) -> Self {
+    pub fn new(sys: &Sys, cli: &Cli) -> Self {
         let width = sys.width();
         let commandline = cli.command.join(" ");
         Self {
@@ -70,7 +71,7 @@ impl OutputSequence {
         }
     }
 
-    fn log_all_lines<Sys: SysApi + 'static>(&mut self, sys: &mut Sys) -> Result<()> {
+    fn log_all_lines(&mut self, sys: &mut Sys) -> Result<()> {
         let mut lines = std::mem::take(&mut self.lines);
         for line in &lines {
             sys.log_line(line)?;
@@ -88,7 +89,7 @@ impl OutputSequence {
 
 impl Output for OutputSequence {
     #[instrument(level = "debug", fields(self=?self.state))]
-    fn run_start<Sys: SysApi + 'static>(&mut self, sys: &mut Sys) -> Result<()> {
+    fn run_start(&mut self, sys: &mut Sys) -> Result<()> {
         let now = sys.now();
         if self.run_duration.is_none() {
             // First execution
@@ -106,11 +107,7 @@ impl Output for OutputSequence {
     }
 
     #[instrument(level = "debug", skip(self))]
-    fn run_end<Sys: SysApi + 'static>(
-        &mut self,
-        sys: &mut Sys,
-        exitstatus: ExitStatus,
-    ) -> Result<()> {
+    fn run_end(&mut self, sys: &mut Sys, exitstatus: ExitStatus) -> Result<()> {
         let now = sys.now();
         self.run_duration = Some(&now - &self.start);
         self.state = State::Sleeping;
@@ -122,7 +119,7 @@ impl Output for OutputSequence {
     }
 
     #[instrument(level = "debug", skip(self))]
-    fn out_line<Sys: SysApi + 'static>(&mut self, sys: &mut Sys, line: String) -> Result<()> {
+    fn out_line(&mut self, sys: &mut Sys, line: String) -> Result<()> {
         self.iline += 1;
         if self.iline <= self.lines.len() && self.lines[self.iline - 1] == line {
             // Same as last execution, keep going
@@ -143,12 +140,12 @@ impl Output for OutputSequence {
     }
 
     #[instrument(level = "debug", skip(self))]
-    fn err_line<Sys: SysApi + 'static>(&mut self, sys: &mut Sys, line: String) -> Result<()> {
+    fn err_line(&mut self, sys: &mut Sys, line: String) -> Result<()> {
         self.out_line(sys, line)
     }
 
     // #[instrument(level = "debug", skip(self))]
-    fn tick<Sys: SysApi + 'static>(&mut self, sys: &mut Sys) -> Result<()> {
+    fn tick(&mut self, sys: &mut Sys) -> Result<()> {
         let now = sys.now();
         match self.state {
             State::Starting => {}

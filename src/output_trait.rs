@@ -9,14 +9,12 @@ use mockall::automock;
 use std::process::ExitStatus;
 
 use crate::output_sequence::OutputSequence;
-use crate::output_simple::OutputSimple;
 
-use crate::sys_api::SysApi;
+use crate::sys_api::Sys;
 
 #[enum_dispatch]
 #[derive(Debug)]
 pub enum OutputEnum {
-    OutputSimple,
     OutputSequence,
     MockOutput,
 }
@@ -24,13 +22,9 @@ pub enum OutputEnum {
 #[enum_dispatch(OutputEnum)]
 #[automock]
 pub trait Output {
-    fn run_start<Sys: SysApi + 'static>(&mut self, sys: &mut Sys) -> Result<()>;
-    fn run_end<Sys: SysApi + 'static>(
-        &mut self,
-        sys: &mut Sys,
-        exitstatus: ExitStatus,
-    ) -> Result<()>;
-    fn out_line<Sys: SysApi + 'static>(&mut self, sys: &mut Sys, line: String) -> Result<()>;
-    fn err_line<Sys: SysApi + 'static>(&mut self, sys: &mut Sys, line: String) -> Result<()>;
-    fn tick<Sys: SysApi + 'static>(&mut self, sys: &mut Sys) -> Result<()>;
+    fn run_start(&mut self, sys: &mut Sys) -> Result<()>;
+    fn run_end(&mut self, sys: &mut Sys, exitstatus: ExitStatus) -> Result<()>;
+    fn out_line(&mut self, sys: &mut Sys, line: String) -> Result<()>;
+    fn err_line(&mut self, sys: &mut Sys, line: String) -> Result<()>;
+    fn tick(&mut self, sys: &mut Sys) -> Result<()>;
 }
