@@ -77,43 +77,39 @@ pub async fn run(sys: &mut Sys, cli: &Cli, mut output: OutputEnum) -> Result<()>
 mod tests {
     use super::*;
 
-    use crate::output_trait::MockOutput;
+    use crate::output_sequence::OutputSequence;
     use crate::sys_virtual::SysVirtual;
     use clap::Parser;
 
     #[tokio::test]
     async fn test_true() -> Result<()> {
-        let mut omock = MockOutput::new();
-        omock
-            .expect_run_start()
-            .times(1)
-            .returning(|_: &mut Sys| Ok(()));
-        omock.expect_tick().returning(|_: &mut Sys| Ok(()));
-        omock.expect_run_end().times(1).returning(|_: &mut Sys, s| {
-            assert!(s.success());
-            Ok(())
-        });
+        let o = OutputSequence::default();
         let cli = Cli::try_parse_from(["ogle", "-z", "--", "true"])?;
         let mut sys = SysVirtual::default().into();
-        run(&mut sys, &cli, OutputEnum::from(omock)).await?;
+        run(&mut sys, &cli, OutputEnum::from(o)).await?;
+        let Sys::SysVirtual(sys) = sys else {
+            unreachable!()
+        };
+        assert_eq!(
+            sys.log,
+            vec!["<O> 1970-01-01 00:00:00 first execution", "+ "]
+        );
         Ok(())
     }
 
     #[tokio::test]
     async fn test_false() -> Result<()> {
-        let mut omock = MockOutput::new();
-        omock
-            .expect_run_start()
-            .times(1)
-            .returning(|_: &mut Sys| Ok(()));
-        omock.expect_tick().returning(|_: &mut Sys| Ok(()));
-        omock.expect_run_end().times(1).returning(|_: &mut Sys, s| {
-            assert!(!s.success());
-            Ok(())
-        });
+        let o = OutputSequence::default();
         let cli = Cli::try_parse_from(["ogle", "-e", "--", "false"])?;
         let mut sys = SysVirtual::default().into();
-        run(&mut sys, &cli, OutputEnum::from(omock)).await?;
+        run(&mut sys, &cli, OutputEnum::from(o)).await?;
+        let Sys::SysVirtual(sys) = sys else {
+            unreachable!()
+        };
+        assert_eq!(
+            sys.log,
+            vec!["<O> 1970-01-01 00:00:00 first execution", "+ "]
+        );
         Ok(())
     }
 }

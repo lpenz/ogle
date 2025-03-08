@@ -21,7 +21,6 @@ console = "0.15.11"
 tokio-process-stream = "0.4.0"
 env_logger = "0.11.7"
 tracing = { version = "0.1.41", features = ["log"] }
-mockall = "0.13.1"
 enum_dispatch = "0.3.13"
 
 [dependencies.chrono]

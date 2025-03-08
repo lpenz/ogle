@@ -11,7 +11,7 @@ use crate::time_wrapper::Instant;
 #[derive(Debug, Clone, Default)]
 pub struct SysVirtual {
     pub log: Vec<String>,
-    pub status: String,
+    pub status: Vec<String>,
     pub now: Instant,
 }
 
@@ -30,7 +30,7 @@ impl SysApi for SysVirtual {
     }
 
     fn update_status(&mut self, status: &str) -> Result<()> {
-        self.status = status.into();
+        self.status.push(status.into());
         Ok(())
     }
 }
