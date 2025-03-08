@@ -12,21 +12,22 @@ use tracing::Level;
 
 use crate::cli::Cli;
 use crate::output_trait::Output;
+use crate::output_trait::OutputEnum;
 use crate::stream::stream_create;
 use crate::stream::StreamItem;
+use crate::sys_api::Sys;
 use crate::sys_api::SysApi;
 use crate::time_wrapper::Duration;
 
 const REFRESH_DELAY: Duration = Duration::milliseconds(250);
 
 #[instrument(level = "debug", skip_all)]
-pub async fn stream_task<Sys: SysApi + 'static, O, T>(
+pub async fn stream_task<T>(
     sys: &mut Sys,
-    output: &mut O,
+    output: &mut OutputEnum,
     mut stream: T,
 ) -> Result<Option<ExitStatus>>
 where
-    O: Output,
     T: StreamExt<Item = StreamItem> + std::marker::Unpin,
 {
     while let Some(item) = stream.next().await {
@@ -52,11 +53,7 @@ where
 }
 
 #[instrument(level = "debug")]
-pub async fn run<Sys: SysApi + 'static, O: Output + std::fmt::Debug>(
-    sys: &mut Sys,
-    cli: &Cli,
-    mut output: O,
-) -> Result<()> {
+pub async fn run(sys: &mut Sys, cli: &Cli, mut output: OutputEnum) -> Result<()> {
     let cli_period = Duration::seconds(cli.period.into());
     loop {
         output.run_start(sys)?;
@@ -90,18 +87,15 @@ mod tests {
         omock
             .expect_run_start()
             .times(1)
-            .returning(|_: &mut MockSysApi| Ok(()));
-        omock.expect_tick().returning(|_: &mut MockSysApi| Ok(()));
-        omock
-            .expect_run_end()
-            .times(1)
-            .returning(|_: &mut MockSysApi, s| {
-                assert!(s.success());
-                Ok(())
-            });
+            .returning(|_: &mut Sys| Ok(()));
+        omock.expect_tick().returning(|_: &mut Sys| Ok(()));
+        omock.expect_run_end().times(1).returning(|_: &mut Sys, s| {
+            assert!(s.success());
+            Ok(())
+        });
         let cli = Cli::try_parse_from(["ogle", "-z", "--", "true"])?;
-        let mut sys = MockSysApi::default();
-        run(&mut sys, &cli, omock).await?;
+        let mut sys = Sys::from(MockSysApi::default());
+        run(&mut sys, &cli, OutputEnum::from(omock)).await?;
         Ok(())
     }
 
@@ -111,18 +105,15 @@ mod tests {
         omock
             .expect_run_start()
             .times(1)
-            .returning(|_: &mut MockSysApi| Ok(()));
-        omock.expect_tick().returning(|_: &mut MockSysApi| Ok(()));
-        omock
-            .expect_run_end()
-            .times(1)
-            .returning(|_: &mut MockSysApi, s| {
-                assert!(!s.success());
-                Ok(())
-            });
+            .returning(|_: &mut Sys| Ok(()));
+        omock.expect_tick().returning(|_: &mut Sys| Ok(()));
+        omock.expect_run_end().times(1).returning(|_: &mut Sys, s| {
+            assert!(!s.success());
+            Ok(())
+        });
         let cli = Cli::try_parse_from(["ogle", "-e", "--", "false"])?;
-        let mut sys = MockSysApi::default();
-        run(&mut sys, &cli, omock).await?;
+        let mut sys = Sys::from(MockSysApi::default());
+        run(&mut sys, &cli, OutputEnum::from(omock)).await?;
         Ok(())
     }
 }

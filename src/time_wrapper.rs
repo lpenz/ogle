@@ -89,12 +89,12 @@ impl From<Duration> for std::time::Duration {
 mod test {
     use super::*;
 
-    use crate::sys_real::Sys;
+    use crate::sys_real::SysReal;
 
     #[test]
     fn basic_instant() {
         let ten = Duration::seconds(10);
-        let sys = Sys::default();
+        let sys = SysReal::default();
         let now = sys.now();
         let now2 = sys.now();
         assert!(&now2 - &now < ten);

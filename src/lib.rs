@@ -21,16 +21,17 @@ mod stream;
 mod time_wrapper;
 
 mod sys_api;
+use sys_api::Sys;
 mod sys_real;
-use sys_real::Sys;
+use sys_real::SysReal;
 
 #[tokio::main]
 pub async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     color_eyre::install()?;
     let args = cli::Cli::parse();
-    let mut sys = Sys::default();
+    let mut sys = Sys::from(SysReal::default());
     let output = output_sequence::OutputSequence::new(&sys, &args);
-    orchestrator::run(&mut sys, &args, output).await?;
+    orchestrator::run(&mut sys, &args, output.into()).await?;
     Ok(())
 }
