@@ -25,6 +25,9 @@ use sys_api::Sys;
 mod sys_real;
 use sys_real::SysReal;
 
+#[cfg(test)]
+mod sys_virtual;
+
 #[tokio::main]
 pub async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
