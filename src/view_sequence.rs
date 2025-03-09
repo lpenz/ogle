@@ -7,12 +7,12 @@ use std::process::ExitStatus;
 use tracing::instrument;
 
 use crate::cli::Cli;
-use crate::output_trait::Output;
 use crate::progbar;
-use crate::sys_api::Sys;
-use crate::sys_api::SysApi;
+use crate::sys::Sys;
+use crate::sys::SysApi;
 use crate::time_wrapper::Duration;
 use crate::time_wrapper::Instant;
+use crate::view::ViewApi;
 
 const SPINNERS: [char; 4] = ['/', '-', '\\', '|'];
 
@@ -25,7 +25,7 @@ pub enum State {
 }
 
 #[derive(Debug)]
-pub struct OutputSequence {
+pub struct ViewSequence {
     width: usize,
     state: State,
     start: Instant,
@@ -39,7 +39,7 @@ pub struct OutputSequence {
     commandline: String,
 }
 
-impl Default for OutputSequence {
+impl Default for ViewSequence {
     fn default() -> Self {
         Self {
             width: 80,
@@ -57,7 +57,7 @@ impl Default for OutputSequence {
     }
 }
 
-impl OutputSequence {
+impl ViewSequence {
     #[instrument(level = "debug")]
     pub fn new(sys: &Sys, cli: &Cli) -> Self {
         let width = sys.width();
@@ -87,7 +87,7 @@ impl OutputSequence {
     }
 }
 
-impl Output for OutputSequence {
+impl ViewApi for ViewSequence {
     #[instrument(level = "debug", fields(self=?self.state))]
     fn run_start(&mut self, sys: &mut Sys) -> Result<()> {
         let now = sys.now();
