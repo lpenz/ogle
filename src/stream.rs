@@ -3,13 +3,16 @@
 // file 'LICENSE', which is part of this source code package.
 
 use color_eyre::Result;
+use pin_project_lite::pin_project;
 use std::convert::TryFrom;
+use std::pin::Pin;
 use std::process::ExitStatus;
+use std::task::{Context, Poll};
+use tokio::process::Command;
 use tokio_process_stream as tps;
 use tokio_stream::wrappers::IntervalStream;
-use tokio_stream::StreamExt;
+use tokio_stream::Stream;
 
-use crate::cli::Cli;
 use crate::time_wrapper::Duration;
 
 #[derive(Debug)]
@@ -38,14 +41,54 @@ impl From<tokio::time::Instant> for StreamItem {
     }
 }
 
-pub fn stream_create(
-    cli: &Cli,
-    refresh_delay: Duration,
-) -> Result<impl StreamExt<Item = StreamItem> + std::marker::Unpin + Send + 'static> {
-    let cmd = cli.get_command();
-    let procstream = tps::ProcessStream::try_from(cmd)?.map(StreamItem::from);
-    let ticker = IntervalStream::new(tokio::time::interval(refresh_delay.into()));
-    Ok(procstream.merge(ticker.map(StreamItem::from)))
+pin_project! {
+#[derive(Debug)]
+pub struct Streamer {
+    process: Option<tps::ProcessLineStream>,
+    ticker: Option<IntervalStream>,
+}
+}
+
+impl Streamer {
+    pub fn new(command: Command, refresh_delay: Duration) -> Result<Self> {
+        Ok(Self {
+            process: Some(tps::ProcessStream::try_from(command)?),
+            ticker: Some(IntervalStream::new(tokio::time::interval(
+                refresh_delay.into(),
+            ))),
+        })
+    }
+}
+
+impl Stream for Streamer {
+    type Item = StreamItem;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        if self.process.is_none() {
+            // Keep returning None after the process is done
+            return Poll::Ready(None);
+        }
+        let this = self.project();
+        if let Some(process) = this.process {
+            match Pin::new(process).poll_next(cx) {
+                Poll::Ready(Some(item)) => {
+                    return Poll::Ready(Some(item.into()));
+                }
+                Poll::Ready(None) => {
+                    *this.process = None;
+                    *this.ticker = None;
+                }
+                Poll::Pending => {}
+            }
+        }
+        let Some(ticker) = this.ticker else {
+            unreachable!()
+        };
+        match Pin::new(ticker).poll_next(cx) {
+            Poll::Ready(Some(item)) => Poll::Ready(Some(item.into())),
+            _ => Poll::Pending,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -63,7 +106,8 @@ mod tests {
         cmd: &[&str],
     ) -> Result<impl StreamExt<Item = StreamItem> + std::marker::Unpin + Send + 'static> {
         let duration = Duration::milliseconds(5000);
-        stream_create(&Cli::try_parse_from(cmd)?, duration)
+        let cli = Cli::try_parse_from(cmd)?;
+        Streamer::new(cli.get_command(), duration)
     }
 
     async fn stream_next<T>(stream: &mut T) -> Result<StreamItem>

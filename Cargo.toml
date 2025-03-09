@@ -22,6 +22,7 @@ tokio-process-stream = "0.4.0"
 env_logger = "0.11.7"
 tracing = { version = "0.1.41", features = ["log"] }
 enum_dispatch = "0.3.13"
+pin-project-lite = "0.2.16"
 
 [dependencies.chrono]
 version = "0.4.40"

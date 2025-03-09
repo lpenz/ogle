@@ -89,6 +89,7 @@ impl From<Duration> for std::time::Duration {
 mod test {
     use super::*;
 
+    use crate::sys::SysApi;
     use crate::sys_real::SysReal;
 
     #[test]
