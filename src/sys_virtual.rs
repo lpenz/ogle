@@ -4,7 +4,7 @@
 
 use color_eyre::Result;
 
-use crate::sys_api::SysApi;
+use crate::sys::SysApi;
 use crate::time_wrapper::Instant;
 
 /// [`SysApi`] implementation of a virtual environment

@@ -9,9 +9,8 @@ use std::error::Error;
 #[macro_use]
 mod misc;
 
-mod output_trait;
-
-mod output_sequence;
+mod view;
+mod view_sequence;
 
 mod cli;
 mod orchestrator;
@@ -19,8 +18,8 @@ mod progbar;
 mod stream;
 mod time_wrapper;
 
-mod sys_api;
-use sys_api::Sys;
+mod sys;
+use sys::Sys;
 mod sys_real;
 use sys_real::SysReal;
 
@@ -33,7 +32,7 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
     color_eyre::install()?;
     let args = cli::Cli::parse();
     let mut sys = Sys::from(SysReal::default());
-    let output = output_sequence::OutputSequence::new(&sys, &args);
-    orchestrator::run(&mut sys, &args, output.into()).await?;
+    let view = view_sequence::ViewSequence::new(&sys, &args);
+    orchestrator::run(&mut sys, &args, view.into()).await?;
     Ok(())
 }

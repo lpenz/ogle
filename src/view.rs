@@ -7,18 +7,18 @@ use enum_dispatch::enum_dispatch;
 use color_eyre::Result;
 use std::process::ExitStatus;
 
-use crate::output_sequence::OutputSequence;
+use crate::view_sequence::ViewSequence;
 
-use crate::sys_api::Sys;
+use crate::sys::Sys;
 
 #[enum_dispatch]
 #[derive(Debug)]
-pub enum OutputEnum {
-    OutputSequence,
+pub enum View {
+    ViewSequence,
 }
 
-#[enum_dispatch(OutputEnum)]
-pub trait Output {
+#[enum_dispatch(View)]
+pub trait ViewApi {
     fn run_start(&mut self, sys: &mut Sys) -> Result<()>;
     fn run_end(&mut self, sys: &mut Sys, exitstatus: ExitStatus) -> Result<()>;
     fn out_line(&mut self, sys: &mut Sys, line: String) -> Result<()>;

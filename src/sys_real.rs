@@ -6,7 +6,7 @@ use color_eyre::Result;
 use console::Term;
 use std::io::Write;
 
-use crate::sys_api::SysApi;
+use crate::sys::SysApi;
 use crate::time_wrapper::Instant;
 
 /// [`SysApi`] implementation of the real environment
