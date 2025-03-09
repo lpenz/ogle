@@ -57,7 +57,8 @@ pub async fn run(sys: &mut Sys, cli: &Cli, mut view: View) -> Result<()> {
     let cli_period = Duration::seconds(cli.period.into());
     loop {
         view.run_start(sys)?;
-        let stream = stream_create(cli, REFRESH_DELAY)?;
+        let command = cli.get_command();
+        let stream = sys.run_command(command, REFRESH_DELAY)?;
         let task = stream_task(sys, &mut view, stream);
         if let Some(result) = task.await? {
             if (cli.until_success && result.success()) || (cli.until_failure && !result.success()) {

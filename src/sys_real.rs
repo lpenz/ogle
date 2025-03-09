@@ -5,12 +5,15 @@
 use color_eyre::Result;
 use console::Term;
 use std::io::Write;
+use tokio::process::Command;
 
+use crate::stream::Streamer;
 use crate::sys::SysApi;
+use crate::time_wrapper::Duration;
 use crate::time_wrapper::Instant;
 
 /// [`SysApi`] implementation of the real environment
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct SysReal {
     term: Term,
     status_visible: bool,
@@ -26,10 +29,6 @@ impl Default for SysReal {
 }
 
 impl SysReal {
-    pub fn now(&self) -> Instant {
-        Instant::from(chrono::offset::Utc::now())
-    }
-
     fn clear_line(&mut self) -> Result<()> {
         self.term.move_cursor_up(1)?;
         self.term.clear_line()?;
@@ -49,7 +48,7 @@ impl SysReal {
 
 impl SysApi for SysReal {
     fn now(&self) -> Instant {
-        self.now()
+        Instant::from(chrono::offset::Utc::now())
     }
 
     fn width(&self) -> usize {
@@ -70,5 +69,9 @@ impl SysApi for SysReal {
         self.write_line(status)?;
         self.status_visible = true;
         Ok(())
+    }
+
+    fn run_command(&self, command: Command, refresh_delay: Duration) -> Result<Streamer> {
+        crate::stream::Streamer::new(command, refresh_delay)
     }
 }
