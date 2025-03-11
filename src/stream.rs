@@ -15,12 +15,12 @@ use tokio_stream::wrappers::IntervalStream;
 
 use crate::time_wrapper::Duration;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StreamItem {
     LineOut(String),
     LineErr(String),
     Done(ExitStatus),
-    Err(std::io::Error),
+    Err(std::io::ErrorKind),
     Tick,
 }
 
@@ -30,7 +30,7 @@ impl From<tps::Item<String>> for StreamItem {
             tps::Item::Stdout(l) => StreamItem::LineOut(l),
             tps::Item::Stderr(l) => StreamItem::LineErr(l),
             tps::Item::Done(Ok(sts)) => StreamItem::Done(sts),
-            tps::Item::Done(Err(e)) => StreamItem::Err(e),
+            tps::Item::Done(Err(e)) => StreamItem::from(e),
         }
     }
 }
@@ -38,6 +38,12 @@ impl From<tps::Item<String>> for StreamItem {
 impl From<tokio::time::Instant> for StreamItem {
     fn from(_: tokio::time::Instant) -> Self {
         StreamItem::Tick
+    }
+}
+
+impl From<std::io::Error> for StreamItem {
+    fn from(e: std::io::Error) -> Self {
+        StreamItem::Err(e.kind())
     }
 }
 
