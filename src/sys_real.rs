@@ -5,11 +5,8 @@
 use color_eyre::Result;
 use console::Term;
 use std::io::Write;
-use tokio::process::Command;
 
-use crate::stream::Streamer;
 use crate::sys::SysApi;
-use crate::time_wrapper::Duration;
 use crate::time_wrapper::Instant;
 
 /// [`SysApi`] implementation of the real environment
@@ -69,9 +66,5 @@ impl SysApi for SysReal {
         self.write_line(status)?;
         self.status_visible = true;
         Ok(())
-    }
-
-    fn run_command(&self, command: Command, refresh_delay: Duration) -> Result<Streamer> {
-        crate::stream::Streamer::new(command, refresh_delay)
     }
 }

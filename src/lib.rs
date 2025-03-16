@@ -18,6 +18,9 @@ mod progbar;
 mod stream;
 mod time_wrapper;
 
+mod sys_input;
+use sys_input::SysInputReal;
+
 mod sys;
 use sys::Sys;
 mod sys_real;
@@ -31,8 +34,9 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     color_eyre::install()?;
     let args = cli::Cli::parse();
+    let sys_input = SysInputReal::default();
     let mut sys = Sys::from(SysReal::default());
     let view = view_sequence::ViewSequence::new(&sys, &args);
-    orchestrator::run(&mut sys, &args, view.into()).await?;
+    orchestrator::run(sys_input, &mut sys, &args, view.into()).await?;
     Ok(())
 }

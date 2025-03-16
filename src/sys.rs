@@ -5,11 +5,8 @@
 use enum_dispatch::enum_dispatch;
 
 use color_eyre::Result;
-use tokio::process::Command;
 
-use crate::stream::Streamer;
 use crate::sys_real::SysReal;
-use crate::time_wrapper::Duration;
 use crate::time_wrapper::Instant;
 
 #[cfg(test)]
@@ -29,5 +26,4 @@ pub trait SysApi: std::fmt::Debug {
     fn width(&self) -> usize;
     fn log_line(&mut self, line: &str) -> Result<()>;
     fn update_status(&mut self, status: &str) -> Result<()>;
-    fn run_command(&self, command: Command, refresh_delay: Duration) -> Result<Streamer>;
 }

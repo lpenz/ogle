@@ -5,11 +5,9 @@
 use color_eyre::Result;
 use pin_project_lite::pin_project;
 use std::collections::VecDeque;
-use std::convert::TryFrom;
 use std::pin::Pin;
 use std::process::ExitStatus;
 use std::task::{Context, Poll};
-use tokio::process::Command;
 use tokio_process_stream as tps;
 use tokio_stream::wrappers::IntervalStream;
 use tokio_stream::Stream;
@@ -61,9 +59,9 @@ pub struct Streamer {
 }
 
 impl Streamer {
-    pub fn new(command: Command, refresh_delay: Duration) -> Result<Self> {
+    pub fn new(process_stream: tps::ProcessLineStream, refresh_delay: Duration) -> Result<Self> {
         Ok(Self {
-            process: Some(tps::ProcessStream::try_from(command)?),
+            process: Some(process_stream),
             ticker: Some(IntervalStream::new(tokio::time::interval(
                 refresh_delay.into(),
             ))),
@@ -122,6 +120,8 @@ mod tests {
     use tokio_stream::StreamExt;
 
     use crate::cli::Cli;
+    use crate::sys_input::SysInputApi;
+    use crate::sys_input::SysInputReal;
 
     use super::*;
 
@@ -130,7 +130,9 @@ mod tests {
     ) -> Result<impl StreamExt<Item = StreamItem> + std::marker::Unpin + Send + 'static> {
         let duration = Duration::milliseconds(5000);
         let cli = Cli::try_parse_from(cmd)?;
-        Streamer::new(cli.get_command(), duration)
+        let sys_input = SysInputReal::default();
+        let process_stream = sys_input.run_command(cli.get_command())?;
+        Streamer::new(process_stream, duration)
     }
 
     async fn stream_next<T>(stream: &mut T) -> Result<StreamItem>
