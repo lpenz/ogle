@@ -131,7 +131,7 @@ mod tests {
         let duration = Duration::milliseconds(5000);
         let cli = Cli::try_parse_from(cmd)?;
         let sys_input = SysInputReal::default();
-        let process_stream = sys_input.run_command(cli.get_command())?;
+        let process_stream = sys_input.run_command(cli.get_cmd())?;
         Streamer::new(process_stream, duration)
     }
 
