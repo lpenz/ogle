@@ -11,8 +11,8 @@ use tracing::instrument;
 use tracing::Level;
 
 use crate::cli::Cli;
-use crate::stream::StreamItem;
-use crate::stream::Streamer;
+use crate::input_stream::InputItem;
+use crate::input_stream::InputStream;
 use crate::sys::Sys;
 use crate::sys::SysApi;
 use crate::sys_input::SysInputApi;
@@ -29,25 +29,25 @@ pub async fn stream_task<T>(
     mut stream: T,
 ) -> Result<Option<ExitStatus>>
 where
-    T: StreamExt<Item = StreamItem> + std::marker::Unpin,
+    T: StreamExt<Item = InputItem> + std::marker::Unpin,
 {
     while let Some(item) = stream.next().await {
         event!(Level::DEBUG, item = ?item, "received");
         match item {
-            StreamItem::LineOut(line) => {
+            InputItem::LineOut(line) => {
                 view.out_line(sys, line)?;
             }
-            StreamItem::LineErr(line) => {
+            InputItem::LineErr(line) => {
                 view.err_line(sys, line)?;
             }
-            StreamItem::Tick => {
+            InputItem::Tick => {
                 view.tick(sys)?;
             }
-            StreamItem::Done(sts) => {
+            InputItem::Done(sts) => {
                 view.run_end(sys, sts)?;
                 return Ok(Some(sts));
             }
-            StreamItem::Err(e) => return Err(eyre!(e)),
+            InputItem::Err(e) => return Err(eyre!(e)),
         };
     }
     panic!("stream ended before process");
@@ -65,7 +65,7 @@ pub async fn run<SI: SysInputApi>(
         view.run_start(sys)?;
         let cmd = cli.get_cmd();
         let process_stream = sys_input.run_command(cmd)?;
-        let stream = Streamer::new(process_stream, REFRESH_DELAY)?;
+        let stream = InputStream::new(process_stream, REFRESH_DELAY)?;
         let task = stream_task(sys, &mut view, stream);
         if let Some(result) = task.await? {
             if (cli.until_success && result.success()) || (cli.until_failure && !result.success()) {
