@@ -13,9 +13,9 @@ mod view;
 mod view_sequence;
 
 mod cli;
+mod input_stream;
 mod orchestrator;
 mod progbar;
-mod stream;
 mod time_wrapper;
 
 mod sys_input;
