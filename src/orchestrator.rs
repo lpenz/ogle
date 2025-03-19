@@ -63,9 +63,7 @@ pub async fn run<SI: SysInputApi>(
     let cli_period = Duration::seconds(cli.period.into());
     loop {
         view.run_start(sys)?;
-        let cmd = cli.get_cmd();
-        let process_stream = sys_input.run_command(cmd)?;
-        let stream = InputStream::new(process_stream, REFRESH_DELAY)?;
+        let stream = InputStream::new(sys_input.clone(), cli.get_cmd(), REFRESH_DELAY)?;
         let task = stream_task(sys, &mut view, stream);
         if let Some(result) = task.await? {
             if (cli.until_success && result.success()) || (cli.until_failure && !result.success()) {

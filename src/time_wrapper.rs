@@ -56,6 +56,8 @@ impl std::ops::Sub for &Instant {
 pub struct Duration(chrono::Duration);
 
 impl Duration {
+    pub const MAX: Self = Self(chrono::Duration::MAX);
+
     pub const fn seconds(value: i64) -> Self {
         Self(chrono::Duration::seconds(value))
     }
