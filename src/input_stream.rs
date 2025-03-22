@@ -8,10 +8,10 @@ use std::collections::VecDeque;
 use std::pin::Pin;
 use std::process::ExitStatus;
 use std::task::{Context, Poll};
-use tokio_process_stream as tps;
 use tokio_stream::Stream;
 use tokio_stream::wrappers::IntervalStream;
 
+use crate::sys_input;
 use crate::sys_input::Cmd;
 use crate::sys_input::ProcessStream;
 use crate::sys_input::SysInputApi;
@@ -26,13 +26,13 @@ pub enum InputItem {
     Tick,
 }
 
-impl From<tps::Item<String>> for InputItem {
-    fn from(item: tps::Item<String>) -> Self {
+impl From<sys_input::Item> for InputItem {
+    fn from(item: sys_input::Item) -> Self {
         match item {
-            tps::Item::Stdout(l) => InputItem::LineOut(l),
-            tps::Item::Stderr(l) => InputItem::LineErr(l),
-            tps::Item::Done(Ok(sts)) => InputItem::Done(sts),
-            tps::Item::Done(Err(e)) => InputItem::from(e),
+            sys_input::Item::Stdout(l) => InputItem::LineOut(l),
+            sys_input::Item::Stderr(l) => InputItem::LineErr(l),
+            sys_input::Item::Done(Ok(sts)) => InputItem::Done(sts),
+            sys_input::Item::Done(Err(e)) => InputItem::Err(e),
         }
     }
 }

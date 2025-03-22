@@ -9,7 +9,9 @@
 use color_eyre::Result;
 use pin_project_lite::pin_project;
 use std::collections::VecDeque;
+use std::io;
 use std::pin::Pin;
+use std::process::ExitStatus;
 use std::process::Stdio;
 use std::task::{Context, Poll};
 use tokio::process::Command;
@@ -41,12 +43,35 @@ impl From<Vec<String>> for Cmd {
 
 //////////////////////////////////////////////////////////////////////////////
 
-pub type Item = tps::Item<String>;
+/// A clonable wrapper for [`tokio_process_stream::Item`]
+#[derive(Debug, Clone)]
+pub enum Item {
+    /// A stdout line printed by the process.
+    Stdout(String),
+    /// A stderr line printed by the process.
+    Stderr(String),
+    /// The [`ExitStatus`](std::process::ExitStatus), yielded after the process exits.
+    Done(Result<ExitStatus, io::ErrorKind>),
+}
+
+impl From<tps::Item<String>> for Item {
+    fn from(item: tps::Item<String>) -> Self {
+        match item {
+            tps::Item::Stdout(s) => Item::Stdout(s),
+            tps::Item::Stderr(s) => Item::Stderr(s),
+            tps::Item::Done(result) => Item::Done(result.map_err(|e| e.kind())),
+        }
+    }
+}
 
 pin_project! {
+/// A mockable wrapper for [`tokio_process_stream::ProcessLineStream`].
 #[project = ProcessStreamProj]
 pub enum ProcessStream {
+    /// Wrapper for [`tokio_process_stream::ProcessLineStream`].
     Real { stream: tps::ProcessLineStream},
+    /// Mock for a running process stream that just returns items from
+    /// a list. Useful for testing.
     Virtual { items: VecDeque<Item> },
 }
 }
@@ -69,7 +94,14 @@ impl Stream for ProcessStream {
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = self.project();
         match this {
-            ProcessStreamProj::Real { stream } => Pin::new(stream).poll_next(cx),
+            ProcessStreamProj::Real { stream } => {
+                let next = Pin::new(stream).poll_next(cx);
+                match next {
+                    Poll::Ready(Some(item)) => Poll::Ready(Some(item.into())),
+                    Poll::Ready(None) => Poll::Ready(None),
+                    Poll::Pending => Poll::Pending,
+                }
+            }
             ProcessStreamProj::Virtual { items } => {
                 if let Some(item) = items.pop_front() {
                     Poll::Ready(Some(item))
@@ -83,7 +115,7 @@ impl Stream for ProcessStream {
 
 //////////////////////////////////////////////////////////////////////////////
 
-/// Wrap the system functions we use to build the [`InputStream`].
+/// Wrap the system functions we use as inputs.
 ///
 /// This wrapper makes testing easy.
 pub trait SysInputApi: std::fmt::Debug + Clone + Default {
@@ -102,15 +134,9 @@ impl SysInputApi for SysInputReal {
 }
 
 /// [`SysInputApi`] implementation of a virtual environment, to be used in tests.
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct SysInputVirtual {
     items: VecDeque<Item>,
-}
-
-impl Clone for SysInputVirtual {
-    fn clone(&self) -> Self {
-        Self::default()
-    }
 }
 
 impl SysInputApi for SysInputVirtual {
@@ -120,8 +146,8 @@ impl SysInputApi for SysInputVirtual {
     }
 }
 
+#[cfg(test)]
 impl SysInputVirtual {
-    #[cfg(test)]
     pub fn set_items(&mut self, items: Vec<Item>) {
         self.items = items.into_iter().collect();
     }
@@ -129,5 +155,3 @@ impl SysInputVirtual {
 
 #[cfg(test)]
 pub mod test {}
-
-//////////////////////////////////////////////////////////////////////////////
