@@ -41,10 +41,16 @@ impl From<Vec<String>> for Cmd {
     }
 }
 
+impl From<&[&str]> for Cmd {
+    fn from(s: &[&str]) -> Cmd {
+        Self(s.iter().map(|s| s.to_string()).collect::<Vec<_>>())
+    }
+}
+
 //////////////////////////////////////////////////////////////////////////////
 
-/// A clonable wrapper for [`tokio_process_stream::Item`]
-#[derive(Debug, Clone)]
+/// A clonable, PartialEq wrapper for [`tokio_process_stream::Item`]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Item {
     /// A stdout line printed by the process.
     Stdout(String),
@@ -96,19 +102,13 @@ impl Stream for ProcessStream {
         match this {
             ProcessStreamProj::Real { stream } => {
                 let next = Pin::new(stream).poll_next(cx);
-                match next {
-                    Poll::Ready(Some(item)) => Poll::Ready(Some(item.into())),
-                    Poll::Ready(None) => Poll::Ready(None),
-                    Poll::Pending => Poll::Pending,
-                }
-            }
-            ProcessStreamProj::Virtual { items } => {
-                if let Some(item) = items.pop_front() {
-                    Poll::Ready(Some(item))
+                if let Poll::Ready(opt) = next {
+                    Poll::Ready(opt.map(|i| i.into()))
                 } else {
-                    Poll::Ready(None)
+                    Poll::Pending
                 }
             }
+            ProcessStreamProj::Virtual { items } => Poll::Ready(items.pop_front()),
         }
     }
 }
@@ -154,4 +154,112 @@ impl SysInputVirtual {
 }
 
 #[cfg(test)]
-pub mod test {}
+pub mod test {
+    use color_eyre::Result;
+    use color_eyre::eyre::eyre;
+    use tokio_stream::StreamExt;
+
+    use crate::sys_input::SysInputReal;
+    use crate::sys_input::SysInputVirtual;
+
+    use super::*;
+
+    // Tests for SysInputReal with simple unix bins as we don't cover
+    // it in downstream tests
+
+    async fn stream_cmd(
+        cmdstr: &[&str],
+    ) -> Result<impl StreamExt<Item = Item> + std::marker::Unpin + Send + 'static> {
+        let cmd = Cmd::from(cmdstr);
+        let mut sys = SysInputReal::default();
+        sys.run_command(cmd).map_err(|e| eyre!(e))
+    }
+
+    async fn stream_next<T>(stream: &mut T) -> Result<Item>
+    where
+        T: StreamExt<Item = Item> + std::marker::Unpin + Send + 'static,
+    {
+        stream.next().await.ok_or(eyre!("no item received"))
+    }
+
+    #[tokio::test]
+    async fn test_true() -> Result<()> {
+        let mut stream = stream_cmd(&["true"]).await?;
+        let item = stream_next(&mut stream).await?;
+        let Item::Done(sts) = item else {
+            return Err(eyre!("unexpected stream item {:?}", item));
+        };
+        assert!(sts.unwrap().success());
+        assert!(stream.next().await.is_none());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_false() -> Result<()> {
+        let mut stream = stream_cmd(&["false"]).await?;
+        let item = stream_next(&mut stream).await?;
+        let Item::Done(sts) = item else {
+            return Err(eyre!("unexpected stream item {:?}", item));
+        };
+        assert!(!sts.unwrap().success());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_echo() -> Result<()> {
+        let mut stream = stream_cmd(&["echo", "test"]).await?;
+        let item = stream_next(&mut stream).await?;
+        let Item::Stdout(s) = item else {
+            return Err(eyre!("unexpected stream item {:?}", item));
+        };
+        assert_eq!(s, "test");
+        let item = stream_next(&mut stream).await?;
+        let Item::Done(sts) = item else {
+            return Err(eyre!("unexpected stream item {:?}", item));
+        };
+        assert!(sts.unwrap().success());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_stderr() -> Result<()> {
+        let mut stream = stream_cmd(&["/bin/sh", "-c", "echo test >&2"]).await?;
+        let item = stream_next(&mut stream).await?;
+        let Item::Stderr(s) = item else {
+            return Err(eyre!("unexpected stream item {:?}", item));
+        };
+        assert_eq!(s, "test");
+        let item = stream_next(&mut stream).await?;
+        let Item::Done(sts) = item else {
+            return Err(eyre!("unexpected stream item {:?}", item));
+        };
+        assert!(sts.unwrap().success());
+        Ok(())
+    }
+
+    #[test]
+    fn test_now() {
+        let sys = SysInputReal::default();
+        let now = sys.now();
+        let now2 = sys.now();
+        assert!(&now2 >= &now);
+    }
+
+    // A simple test for SysInputVirtual as we cover it better in
+    // downstream tests
+
+    #[tokio::test]
+    async fn test_sysinputvirtual() -> Result<()> {
+        let list = vec![
+            Item::Stdout("stdout".into()),
+            Item::Stderr("stderr".into()),
+            Item::Done(Ok(ExitStatus::default())),
+        ];
+        let mut sys = SysInputVirtual::default();
+        sys.set_items(list.clone());
+        let streamer = sys.run_command(Cmd::default())?;
+        let streamed = streamer.collect::<Vec<_>>().await;
+        assert_eq!(streamed, list);
+        Ok(())
+    }
+}
