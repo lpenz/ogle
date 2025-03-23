@@ -3,32 +3,21 @@
 // file 'LICENSE', which is part of this source code package.
 
 use color_eyre::Result;
-use console::Term;
-use std::io::Write;
 
 use crate::sys::SysApi;
+use crate::term_wrapper::*;
 use crate::time_wrapper::Instant;
 
 /// [`SysApi`] implementation of the real environment
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct SysReal {
-    term: Term,
     status_visible: bool,
-}
-
-impl Default for SysReal {
-    fn default() -> Self {
-        Self {
-            term: Term::stdout(),
-            status_visible: false,
-        }
-    }
 }
 
 impl SysReal {
     fn clear_line(&mut self) -> Result<()> {
-        self.term.move_cursor_up(1)?;
-        self.term.clear_line()?;
+        move_cursor_up(1)?;
+        clear_line()?;
         Ok(())
     }
 
@@ -36,9 +25,9 @@ impl SysReal {
         if self.status_visible {
             self.clear_line()?;
         }
-        self.term.write_all(line.as_bytes())?;
-        self.term.write_all(b"\n")?;
-        self.term.flush()?;
+        write_all(line.as_bytes())?;
+        write_all(b"\n")?;
+        flush()?;
         Ok(())
     }
 }
@@ -49,7 +38,7 @@ impl SysApi for SysReal {
     }
 
     fn width(&self) -> usize {
-        if let Some((_, w)) = self.term.size_checked() {
+        if let Some((_, w)) = size_checked() {
             w as usize
         } else {
             80

@@ -18,6 +18,8 @@ mod orchestrator;
 mod progbar;
 mod time_wrapper;
 
+mod term_wrapper;
+
 mod sys_input;
 use sys_input::SysInputReal;
 
