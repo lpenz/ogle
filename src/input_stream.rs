@@ -16,9 +16,10 @@ use crate::sys_input::Cmd;
 use crate::sys_input::ProcessStream;
 use crate::sys_input::SysInputApi;
 use crate::time_wrapper::Duration;
+use crate::time_wrapper::Instant;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum InputItem {
+pub enum InputData {
     LineOut(String),
     LineErr(String),
     Done(ExitStatus),
@@ -26,26 +27,44 @@ pub enum InputItem {
     Tick,
 }
 
-impl From<sys_input::Item> for InputItem {
+impl From<sys_input::Item> for InputData {
     fn from(item: sys_input::Item) -> Self {
         match item {
-            sys_input::Item::Stdout(l) => InputItem::LineOut(l),
-            sys_input::Item::Stderr(l) => InputItem::LineErr(l),
-            sys_input::Item::Done(Ok(sts)) => InputItem::Done(sts),
-            sys_input::Item::Done(Err(e)) => InputItem::Err(e),
+            sys_input::Item::Stdout(l) => InputData::LineOut(l),
+            sys_input::Item::Stderr(l) => InputData::LineErr(l),
+            sys_input::Item::Done(Ok(sts)) => InputData::Done(sts),
+            sys_input::Item::Done(Err(e)) => InputData::Err(e),
         }
     }
 }
 
-impl From<tokio::time::Instant> for InputItem {
+impl From<tokio::time::Instant> for InputData {
     fn from(_: tokio::time::Instant) -> Self {
-        InputItem::Tick
+        InputData::Tick
     }
 }
 
-impl From<std::io::Error> for InputItem {
+impl From<std::io::Error> for InputData {
     fn from(e: std::io::Error) -> Self {
-        InputItem::Err(e.kind())
+        InputData::Err(e.kind())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InputItem {
+    pub time: Instant,
+    pub data: InputData,
+}
+
+impl InputItem {
+    pub fn new<D>(time: Instant, data: D) -> InputItem
+    where
+        D: Into<InputData>,
+    {
+        Self {
+            time,
+            data: data.into(),
+        }
     }
 }
 
@@ -85,17 +104,18 @@ impl<SI: SysInputApi> Stream for InputStream<SI> {
         if let Some(item) = this.testlist.pop_front() {
             return Poll::Ready(Some(item));
         }
+        let now = this.sys_input.now();
         if this.process.is_none() {
             // Run the process if it's not running
             match this.sys_input.run_command(this.cmd.clone()) {
                 Ok(process) => *this.process = Some(process),
-                Err(e) => return Poll::Ready(Some(InputItem::Err(e.kind()))),
+                Err(e) => return Poll::Ready(Some(InputItem::new(now, e))),
             }
         }
         if let Some(process) = this.process {
             match Pin::new(process).poll_next(cx) {
                 Poll::Ready(Some(item)) => {
-                    return Poll::Ready(Some(item.into()));
+                    return Poll::Ready(Some(InputItem::new(now, item)));
                 }
                 Poll::Ready(None) => {
                     *this.process = None;
@@ -106,7 +126,7 @@ impl<SI: SysInputApi> Stream for InputStream<SI> {
         }
         if let Some(ticker) = this.ticker {
             match Pin::new(ticker).poll_next(cx) {
-                Poll::Ready(Some(item)) => Poll::Ready(Some(item.into())),
+                Poll::Ready(Some(item)) => Poll::Ready(Some(InputItem::new(now, item))),
                 _ => Poll::Pending,
             }
         } else {

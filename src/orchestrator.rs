@@ -11,6 +11,7 @@ use tracing::event;
 use tracing::instrument;
 
 use crate::cli::Cli;
+use crate::input_stream::InputData;
 use crate::input_stream::InputItem;
 use crate::input_stream::InputStream;
 use crate::sys::Sys;
@@ -33,21 +34,21 @@ where
 {
     while let Some(item) = stream.next().await {
         event!(Level::DEBUG, item = ?item, "received");
-        match item {
-            InputItem::LineOut(line) => {
+        match item.data {
+            InputData::LineOut(line) => {
                 view.out_line(sys, line)?;
             }
-            InputItem::LineErr(line) => {
+            InputData::LineErr(line) => {
                 view.err_line(sys, line)?;
             }
-            InputItem::Tick => {
+            InputData::Tick => {
                 view.tick(sys)?;
             }
-            InputItem::Done(sts) => {
+            InputData::Done(sts) => {
                 view.run_end(sys, sts)?;
                 return Ok(Some(sts));
             }
-            InputItem::Err(e) => return Err(eyre!(e)),
+            InputData::Err(e) => return Err(eyre!(e)),
         };
     }
     panic!("stream ended before process");

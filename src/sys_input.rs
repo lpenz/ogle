@@ -18,6 +18,8 @@ use tokio::process::Command;
 use tokio_process_stream as tps;
 use tokio_stream::Stream;
 
+use crate::time_wrapper::Instant;
+
 //////////////////////////////////////////////////////////////////////////////
 
 /// A [`tokio::process::Command`] pseudo-wrapper that `impl Clone`.
@@ -119,6 +121,7 @@ impl Stream for ProcessStream {
 ///
 /// This wrapper makes testing easy.
 pub trait SysInputApi: std::fmt::Debug + Clone + Default {
+    fn now(&self) -> Instant;
     fn run_command(&mut self, command: Cmd) -> Result<ProcessStream, std::io::Error>;
 }
 
@@ -127,6 +130,9 @@ pub trait SysInputApi: std::fmt::Debug + Clone + Default {
 pub struct SysInputReal {}
 
 impl SysInputApi for SysInputReal {
+    fn now(&self) -> Instant {
+        Instant::from(chrono::offset::Utc::now())
+    }
     fn run_command(&mut self, cmd: Cmd) -> Result<ProcessStream, std::io::Error> {
         let process_stream = tps::ProcessLineStream::try_from(cmd.get_command())?;
         Ok(ProcessStream::from(process_stream))
@@ -140,6 +146,9 @@ pub struct SysInputVirtual {
 }
 
 impl SysInputApi for SysInputVirtual {
+    fn now(&self) -> Instant {
+        Default::default()
+    }
     fn run_command(&mut self, _cmd: Cmd) -> Result<ProcessStream, std::io::Error> {
         let items = std::mem::take(&mut self.items);
         Ok(ProcessStream::from(items))
