@@ -18,6 +18,7 @@ use tokio::process::Command;
 use tokio_process_stream as tps;
 use tokio_stream::Stream;
 
+use crate::term_wrapper;
 use crate::time_wrapper::Instant;
 
 //////////////////////////////////////////////////////////////////////////////
@@ -122,6 +123,8 @@ impl Stream for ProcessStream {
 /// This wrapper makes testing easy.
 pub trait SysInputApi: std::fmt::Debug + Clone + Default {
     fn now(&self) -> Instant;
+    #[allow(dead_code)]
+    fn size_checked(&self) -> Option<(u16, u16)>;
     fn run_command(&mut self, command: Cmd) -> Result<ProcessStream, std::io::Error>;
 }
 
@@ -132,6 +135,9 @@ pub struct SysInputReal {}
 impl SysInputApi for SysInputReal {
     fn now(&self) -> Instant {
         Instant::from(chrono::offset::Utc::now())
+    }
+    fn size_checked(&self) -> Option<(u16, u16)> {
+        term_wrapper::size_checked()
     }
     fn run_command(&mut self, cmd: Cmd) -> Result<ProcessStream, std::io::Error> {
         let process_stream = tps::ProcessLineStream::try_from(cmd.get_command())?;
@@ -148,6 +154,9 @@ pub struct SysInputVirtual {
 impl SysInputApi for SysInputVirtual {
     fn now(&self) -> Instant {
         Default::default()
+    }
+    fn size_checked(&self) -> Option<(u16, u16)> {
+        Some((25, 80))
     }
     fn run_command(&mut self, _cmd: Cmd) -> Result<ProcessStream, std::io::Error> {
         let items = std::mem::take(&mut self.items);
