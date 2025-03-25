@@ -28,6 +28,7 @@ use sys::Sys;
 mod sys_real;
 use sys_real::SysReal;
 
+mod output_sink;
 #[cfg(test)]
 mod sys_virtual;
 
