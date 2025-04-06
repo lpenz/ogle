@@ -8,6 +8,7 @@
 
 use color_eyre::Result;
 use pin_project_lite::pin_project;
+use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::io;
 use std::pin::Pin;
@@ -19,6 +20,7 @@ use tokio_process_stream as tps;
 use tokio_stream::Stream;
 
 use crate::term_wrapper;
+use crate::time_wrapper::Duration;
 use crate::time_wrapper::Instant;
 
 //////////////////////////////////////////////////////////////////////////////
@@ -148,12 +150,16 @@ impl SysInputApi for SysInputReal {
 /// [`SysInputApi`] implementation of a virtual environment, to be used in tests.
 #[derive(Debug, Clone, Default)]
 pub struct SysInputVirtual {
+    now: RefCell<Instant>,
     items: VecDeque<Item>,
 }
 
 impl SysInputApi for SysInputVirtual {
     fn now(&self) -> Instant {
-        Default::default()
+        let mut now_ref = self.now.borrow_mut();
+        let now = *now_ref;
+        *now_ref = &now + &Duration::seconds(1);
+        now
     }
     fn size_checked(&self) -> Option<(u16, u16)> {
         Some((25, 80))
@@ -278,6 +284,9 @@ pub mod test {
         let streamer = sys.run_command(Cmd::default())?;
         let streamed = streamer.collect::<Vec<_>>().await;
         assert_eq!(streamed, list);
+        assert_eq!(sys.now(), Instant::default());
+        assert_eq!(sys.now(), &Instant::default() + &Duration::seconds(1));
+        assert_eq!(sys.size_checked(), Some((25, 80)));
         Ok(())
     }
 }

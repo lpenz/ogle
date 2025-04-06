@@ -17,6 +17,9 @@ use crate::sys_input::SysInputApi;
 use crate::time_wrapper::Duration;
 use crate::time_wrapper::Instant;
 
+#[cfg(test)]
+use crate::sys_input::SysInputVirtual;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InputData {
     LineOut(String),
@@ -92,6 +95,18 @@ impl<SI: SysInputApi> InputStream<SI> {
     }
 }
 
+#[cfg(test)]
+impl InputStream<SysInputVirtual> {
+    pub fn new_virtual(sys_input: SysInputVirtual) -> Result<Self> {
+        Ok(Self {
+            sys_input,
+            cmd: Cmd::default(),
+            process: None,
+            ticker: None,
+        })
+    }
+}
+
 impl<SI: SysInputApi> Stream for InputStream<SI> {
     type Item = InputItem;
 
@@ -129,4 +144,65 @@ impl<SI: SysInputApi> Stream for InputStream<SI> {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use color_eyre::Result;
+    use std::io;
+    use tokio_stream::StreamExt;
+
+    use crate::sys_input::Item;
+    use crate::sys_input::SysInputVirtual;
+    use crate::time_wrapper::Duration;
+    use crate::time_wrapper::Instant;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn test_basic_success() -> Result<()> {
+        let list = vec![
+            Item::Stdout("stdout".into()),
+            Item::Stderr("stderr".into()),
+            Item::Done(Ok(ExitStatus::default())),
+        ];
+        let mut sys = SysInputVirtual::default();
+        sys.set_items(list.clone());
+        let streamer = InputStream::new_virtual(sys)?;
+        let streamed = streamer.collect::<Vec<_>>().await;
+        let now = Instant::default();
+        assert_eq!(
+            streamed,
+            vec![
+                InputItem {
+                    time: now,
+                    data: InputData::LineOut("stdout".to_owned())
+                },
+                InputItem {
+                    time: &now + &Duration::seconds(1),
+                    data: InputData::LineErr("stderr".to_owned())
+                },
+                InputItem {
+                    time: &now + &Duration::seconds(2),
+                    data: InputData::Done(ExitStatus::default())
+                }
+            ]
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_done_err() -> Result<()> {
+        let list = vec![Item::Done(Err(io::ErrorKind::UnexpectedEof))];
+        let mut sys = SysInputVirtual::default();
+        sys.set_items(list.clone());
+        let streamer = InputStream::new_virtual(sys)?;
+        let streamed = streamer.collect::<Vec<_>>().await;
+        let now = Instant::default();
+        assert_eq!(
+            streamed,
+            vec![InputItem {
+                time: now,
+                data: InputData::Err(io::ErrorKind::UnexpectedEof)
+            }]
+        );
+        Ok(())
+    }
+}
