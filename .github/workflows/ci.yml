@@ -5,7 +5,7 @@ jobs:
   omnilint:
     uses: lpenz/omnilint/.github/workflows/omnilint.yml@v0.5.2
   rust:
-    uses: lpenz/ghworkflow-rust/.github/workflows/rust.yml@v0.23.3
+    uses: lpenz/ghworkflow-rust/.github/workflows/rust.yml@v0.23.4
     with:
       coveralls: true
       deb: true
@@ -25,8 +25,8 @@ jobs:
   nix:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4.2.0
-      - uses: cachix/install-nix-action@v29
+      - uses: actions/checkout@v4.2.2
+      - uses: cachix/install-nix-action@v31.1.0
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - run: nix build
@@ -35,15 +35,15 @@ jobs:
     needs: [ omnilint, rust, nix ]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4.2.0
+      - uses: actions/checkout@v4.2.2
         with:
           fetch-depth: 0
       - id: version
-        uses: docker://lpenz/ghaction-version-gen:0.14.0
-      - uses: cachix/install-nix-action@v29
+        uses: docker://lpenz/ghaction-version-gen:0.14.1
+      - uses: cachix/install-nix-action@v31.1.0
         with:
           nix_path: nixpkgs=channel:nixos-unstable
-      - uses: cachix/cachix-action@v15
+      - uses: cachix/cachix-action@v16
         with:
           skipPush: ${{ steps.version.outputs.version_commit == '' }}
           name: lpenz
