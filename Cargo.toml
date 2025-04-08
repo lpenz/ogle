@@ -15,7 +15,7 @@ keywords = ["watch", "command-line"]
 [dependencies]
 clap = { version = "4.5.18", features = ["derive"] }
 color-eyre = "0.6.3"
-tokio = "1.40.0"
+tokio = "1.43.1"
 tokio-stream = "0.1.16"
 console = "0.15.8"
 tokio-process-stream = "0.4.0"
