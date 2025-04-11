@@ -32,6 +32,8 @@ mod output_sink;
 #[cfg(test)]
 mod sys_virtual;
 
+mod pipe;
+
 #[tokio::main]
 pub async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();

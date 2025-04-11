@@ -32,7 +32,7 @@ impl OutputCommandTrait for ClearLine {
     }
 }
 
-pub struct WriteAll(Vec<u8>);
+pub struct WriteAll(pub Vec<u8>);
 impl OutputCommandTrait for WriteAll {
     fn execute(&self) {
         write_all(&self.0).unwrap()
