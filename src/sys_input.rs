@@ -7,9 +7,10 @@
 //! Wrapping this makes it very easy to test the whole program.
 
 use color_eyre::Result;
-use pin_project_lite::pin_project;
+use pin_project::pin_project;
 use std::cell::RefCell;
 use std::collections::VecDeque;
+use std::fmt;
 use std::io;
 use std::pin::Pin;
 use std::process::ExitStatus;
@@ -52,6 +53,13 @@ impl From<&[&str]> for Cmd {
     }
 }
 
+impl fmt::Display for Cmd {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let joined = self.0.join(" ");
+        write!(f, "{}", joined)
+    }
+}
+
 //////////////////////////////////////////////////////////////////////////////
 
 /// A clonable, PartialEq wrapper for [`tokio_process_stream::Item`]
@@ -75,16 +83,14 @@ impl From<tps::Item<String>> for Item {
     }
 }
 
-pin_project! {
 /// A mockable wrapper for [`tokio_process_stream::ProcessLineStream`].
-#[project = ProcessStreamProj]
+#[pin_project(project = ProcessStreamProj)]
 pub enum ProcessStream {
     /// Wrapper for [`tokio_process_stream::ProcessLineStream`].
-    Real { stream: tps::ProcessLineStream},
+    Real { stream: tps::ProcessLineStream },
     /// Mock for a running process stream that just returns items from
     /// a list. Useful for testing.
     Virtual { items: VecDeque<Item> },
-}
 }
 
 impl From<tps::ProcessLineStream> for ProcessStream {

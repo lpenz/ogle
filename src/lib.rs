@@ -6,8 +6,8 @@ use clap::Parser;
 
 use std::error::Error;
 
-// #[macro_use]
-// mod misc;
+#[macro_use]
+mod misc;
 
 mod cli;
 mod input_stream;
