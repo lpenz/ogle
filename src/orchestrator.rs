@@ -3,124 +3,19 @@
 // file 'LICENSE', which is part of this source code package.
 
 use color_eyre::Result;
-use color_eyre::eyre::eyre;
-use std::process::ExitStatus;
-use tokio_stream::StreamExt;
-use tracing::Level;
-use tracing::event;
 use tracing::instrument;
 
 use crate::cli::Cli;
-use crate::input_stream::InputData;
-use crate::input_stream::InputItem;
 use crate::input_stream::InputStream;
-use crate::sys::Sys;
-use crate::sys::SysApi;
+use crate::output_sink::output_sink;
+use crate::pipe::Pipe;
 use crate::sys_input::SysInputApi;
 use crate::time_wrapper::Duration;
-use crate::view::View;
-use crate::view::ViewApi;
-
-const REFRESH_DELAY: Duration = Duration::milliseconds(250);
-
-#[instrument(level = "debug", skip_all)]
-pub async fn stream_task<T>(
-    sys: &mut Sys,
-    view: &mut View,
-    mut stream: T,
-) -> Result<Option<ExitStatus>>
-where
-    T: StreamExt<Item = InputItem> + std::marker::Unpin,
-{
-    while let Some(item) = stream.next().await {
-        event!(Level::DEBUG, item = ?item, "received");
-        match item.data {
-            InputData::LineOut(line) => {
-                view.out_line(sys, line)?;
-            }
-            InputData::LineErr(line) => {
-                view.err_line(sys, line)?;
-            }
-            InputData::Tick => {
-                view.tick(sys)?;
-            }
-            InputData::Done(sts) => {
-                view.run_end(sys, sts)?;
-                return Ok(Some(sts));
-            }
-            InputData::Err(e) => return Err(eyre!(e)),
-        };
-    }
-    panic!("stream ended before process");
-}
 
 #[instrument(level = "debug")]
-pub async fn run<SI: SysInputApi>(
-    sys_input: SI,
-    sys: &mut Sys,
-    cli: &Cli,
-    mut view: View,
-) -> Result<()> {
+pub async fn run<SI: SysInputApi>(cli: Cli, sys: SI) -> Result<()> {
     let cli_period = Duration::seconds(cli.period.into());
-    loop {
-        view.run_start(sys)?;
-        let stream = InputStream::new(sys_input.clone(), cli.get_cmd(), REFRESH_DELAY)?;
-        let task = stream_task(sys, &mut view, stream);
-        if let Some(result) = task.await? {
-            if (cli.until_success && result.success()) || (cli.until_failure && !result.success()) {
-                return Ok(());
-            }
-        }
-        // Sleep
-        let end = &sys.now() + &cli_period;
-        while sys.now() < end {
-            view.tick(sys)?;
-            tokio::time::sleep(REFRESH_DELAY.into()).await;
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    use crate::sys_input::SysInputReal;
-    use crate::sys_virtual::SysVirtual;
-    use crate::view_sequence::ViewSequence;
-
-    use clap::Parser;
-
-    #[tokio::test]
-    async fn test_true() -> Result<()> {
-        let o = ViewSequence::default();
-        let cli = Cli::try_parse_from(["ogle", "-z", "--", "true"])?;
-        let sys_input = SysInputReal::default();
-        let mut sys = SysVirtual::default().into();
-        run(sys_input, &mut sys, &cli, View::from(o)).await?;
-        let Sys::SysVirtual(sys) = sys else {
-            unreachable!()
-        };
-        assert_eq!(
-            sys.log,
-            vec!["<O> 1970-01-01 00:00:00 first execution", "+ "]
-        );
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_false() -> Result<()> {
-        let o = ViewSequence::default();
-        let cli = Cli::try_parse_from(["ogle", "-e", "--", "false"])?;
-        let sys_input = SysInputReal::default();
-        let mut sys = SysVirtual::default().into();
-        run(sys_input, &mut sys, &cli, View::from(o)).await?;
-        let Sys::SysVirtual(sys) = sys else {
-            unreachable!()
-        };
-        assert_eq!(
-            sys.log,
-            vec!["<O> 1970-01-01 00:00:00 first execution", "+ "]
-        );
-        Ok(())
-    }
+    let input_stream = InputStream::new(sys.clone(), cli.get_cmd(), cli_period)?;
+    let pipe = Pipe::from(input_stream);
+    output_sink(pipe).await
 }

@@ -123,6 +123,10 @@ impl<SI: SysInputApi> Stream for InputStream<SI> {
         if let Some(process) = this.process {
             match Pin::new(process).poll_next(cx) {
                 Poll::Ready(Some(item)) => {
+                    if matches!(item, sys_input::Item::Done(_)) {
+                        // Trigger a new execution next time we are called:
+                        *this.process = None;
+                    }
                     return Poll::Ready(Some(InputItem::new(now, item)));
                 }
                 Poll::Ready(None) => {

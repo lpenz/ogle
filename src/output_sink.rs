@@ -7,6 +7,7 @@
 //! This implements a command design pattern, which makes it very easy
 //! to test that we are issuing the correct commands.
 
+use color_eyre::Result;
 use enum_dispatch::enum_dispatch;
 use tokio_stream::Stream;
 use tokio_stream::StreamExt;
@@ -57,11 +58,12 @@ pub enum OutputCommand {
 /// This function runs all commands in the provided stream until it is
 /// exhausted.
 #[allow(dead_code)]
-pub async fn output_sink<S>(mut stream: S)
+pub async fn output_sink<S>(mut stream: S) -> Result<()>
 where
     S: Stream<Item = OutputCommand> + std::marker::Unpin,
 {
     while let Some(cmd) = stream.next().await {
         cmd.execute();
     }
+    Ok(())
 }
