@@ -13,6 +13,13 @@ impl Instant {
     pub fn epoch() -> Self {
         Instant(chrono::DateTime::UNIX_EPOCH)
     }
+
+    #[cfg(test)]
+    pub fn incr(&mut self) -> Self {
+        let me = *self;
+        *self = &me + &Duration::seconds(1);
+        me
+    }
 }
 
 impl Default for Instant {

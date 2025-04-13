@@ -42,6 +42,7 @@ impl<SI: SysInputApi> Stream for Pipe<SI> {
         match Pin::new(this.input_stream).poll_next(cx) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(Some(InputItem { time: _, data })) => match data {
+                InputData::Start => Poll::Pending,
                 InputData::LineOut(line) => Poll::Ready(Some(writeline(line))),
                 InputData::LineErr(line) => Poll::Ready(Some(writeline(line))),
                 InputData::Done(sts) => Poll::Ready(Some(writeline(format!("done {:?}", sts)))),
