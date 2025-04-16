@@ -22,6 +22,8 @@ use sys_input::SysInputReal;
 
 mod output_sink;
 
+mod differ;
+
 mod pipe;
 
 #[tokio::main]
