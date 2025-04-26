@@ -19,6 +19,7 @@ use std::task::{Context, Poll};
 use tokio::process::Command;
 use tokio_process_stream as tps;
 use tokio_stream::Stream;
+use tracing::instrument;
 
 use crate::term_wrapper;
 use crate::time_wrapper::Duration;
@@ -93,6 +94,16 @@ pub enum ProcessStream {
     Virtual { items: VecDeque<Item> },
 }
 
+impl std::fmt::Debug for ProcessStream {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ProcessStream::Real { stream: _ } => f.debug_struct("ProcessStream::Real"),
+            ProcessStream::Virtual { items: _ } => f.debug_struct("ProcessStream::Virtual"),
+        }
+        .finish()
+    }
+}
+
 impl From<tps::ProcessLineStream> for ProcessStream {
     fn from(stream: tps::ProcessLineStream) -> Self {
         ProcessStream::Real { stream }
@@ -108,6 +119,7 @@ impl From<VecDeque<Item>> for ProcessStream {
 impl Stream for ProcessStream {
     type Item = Item;
 
+    #[instrument(level = "debug", ret, skip(cx))]
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = self.project();
         match this {

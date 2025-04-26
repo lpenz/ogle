@@ -9,6 +9,7 @@ use std::process::ExitStatus;
 use std::task::{Context, Poll};
 use tokio_stream::Stream;
 use tokio_stream::wrappers::IntervalStream;
+use tracing::instrument;
 
 use crate::sys_input;
 use crate::sys_input::Cmd;
@@ -83,6 +84,23 @@ pub struct InputStream<SI: SysInputApi> {
     done: bool,
 }
 
+impl<SI: SysInputApi> std::fmt::Debug for InputStream<SI> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let none = format_args!("None");
+        let some = format_args!("Some");
+        f.debug_struct("InputStream")
+            .field("sys_input", &self.sys_input)
+            .field("cmd", &self.cmd)
+            .field(
+                "process",
+                if self.process.is_none() { &none } else { &some },
+            )
+            .field("ticker", if self.process.is_none() { &none } else { &some })
+            .field("done", &self.done)
+            .finish()
+    }
+}
+
 impl<SI: SysInputApi> InputStream<SI> {
     pub fn new(sys_input: SI, cmd: Cmd, refresh_delay: Duration) -> Result<Self> {
         Ok(Self {
@@ -113,6 +131,7 @@ impl InputStream<SysInputVirtual> {
 impl<SI: SysInputApi> Stream for InputStream<SI> {
     type Item = InputItem;
 
+    #[instrument(level = "debug", ret, skip(cx))]
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = self.project();
         let now = this.sys_input.now();
