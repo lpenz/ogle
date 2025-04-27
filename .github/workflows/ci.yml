@@ -15,9 +15,7 @@ jobs:
         target/release/ogle target/release/ogle.1
       publish_packagecloud: true
       publish_packagecloud_repository: |
-        ["debian/debian/bullseye",
-         "debian/debian/bookworm",
-         "ubuntu/ubuntu/jammy",
+        ["debian/debian/bookworm",
          "ubuntu/ubuntu/noble"]
     secrets:
       CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
