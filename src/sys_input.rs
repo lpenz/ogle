@@ -63,7 +63,7 @@ impl fmt::Display for Cmd {
 
 //////////////////////////////////////////////////////////////////////////////
 
-/// A clonable, PartialEq wrapper for [`tokio_process_stream::Item`]
+/// A clonable, PartialEq replacement for [`tokio_process_stream::Item`]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Item {
     /// A stdout line printed by the process.
@@ -300,7 +300,10 @@ pub mod test {
         ];
         let mut sys = SysInputVirtual::default();
         sys.set_items(list.clone());
-        let streamer = sys.run_command(Cmd::default())?;
+        let cmd = Cmd::default();
+        assert_eq!(format!("{}", cmd), "");
+        let streamer = sys.run_command(cmd)?;
+        assert_eq!(format!("{:?}", streamer), "ProcessStream::Virtual");
         let streamed = streamer.collect::<Vec<_>>().await;
         assert_eq!(streamed, list);
         assert_eq!(sys.now(), Instant::default());
