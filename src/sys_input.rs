@@ -88,7 +88,7 @@ impl From<tps::Item<String>> for Item {
 #[pin_project(project = ProcessStreamProj)]
 pub enum ProcessStream {
     /// Wrapper for [`tokio_process_stream::ProcessLineStream`].
-    Real { stream: tps::ProcessLineStream },
+    Real { stream: Box<tps::ProcessLineStream> },
     /// Mock for a running process stream that just returns items from
     /// a list. Useful for testing.
     Virtual { items: VecDeque<Item> },
@@ -106,7 +106,9 @@ impl std::fmt::Debug for ProcessStream {
 
 impl From<tps::ProcessLineStream> for ProcessStream {
     fn from(stream: tps::ProcessLineStream) -> Self {
-        ProcessStream::Real { stream }
+        ProcessStream::Real {
+            stream: Box::new(stream),
+        }
     }
 }
 
@@ -125,10 +127,9 @@ impl Stream for ProcessStream {
         match this {
             ProcessStreamProj::Real { stream } => {
                 let next = Pin::new(stream).poll_next(cx);
-                if let Poll::Ready(opt) = next {
-                    Poll::Ready(opt.map(|i| i.into()))
-                } else {
-                    Poll::Pending
+                match next {
+                    Poll::Ready(opt) => Poll::Ready(opt.map(|i| i.into())),
+                    Poll::Pending => Poll::Pending,
                 }
             }
             ProcessStreamProj::Virtual { items } => Poll::Ready(items.pop_front()),
