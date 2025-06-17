@@ -53,3 +53,12 @@ assets = [
     ["README.md", "usr/share/doc/ogle/", "644"],
     ["CHANGELOG.md", "usr/share/doc/ogle/", "644"],
 ]
+
+[package.metadata.generate-rpm]
+assets = [
+    { source = "target/release/ogle.1", dest = "/usr/share/man/man1/", mode = "644" },
+    { source = "target/release/ogle", dest = "/usr/bin/", mode = "755" },
+    { source = "LICENSE", dest = "/usr/share/doc/ogle/", mode = "644" },
+    { source = "AUTHORS", dest = "/usr/share/doc/ogle/", mode = "644" },
+    { source = "README.md", dest = "/usr/share/doc/ogle/", mode = "644" },
+]
