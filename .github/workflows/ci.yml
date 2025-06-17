@@ -1,11 +1,14 @@
 ---
 name: CI
-on: [ workflow_dispatch, push, pull_request ]
+on:  # yamllint disable-line rule:truthy
+  - workflow_dispatch
+  - push
+  - pull_request
 jobs:
   omnilint:
     uses: lpenz/omnilint/.github/workflows/omnilint.yml@v0.5.2
   rust:
-    uses: lpenz/ghworkflow-rust/.github/workflows/rust.yml@v0.23.4
+    uses: lpenz/ghworkflow-rust/.github/workflows/rust.yml@v0.24.0
     with:
       coveralls: true
       deb: true
@@ -13,8 +16,7 @@ jobs:
       publish_github_release: true
       publish_github_release_files: |
         target/release/ogle target/release/ogle.1
-      publish_packagecloud: true
-      publish_packagecloud_repository: |
+      publish_packagecloud_repository_deb: |
         ["debian/debian/bookworm",
          "ubuntu/ubuntu/noble"]
     secrets:
@@ -24,21 +26,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4.2.2
-      - uses: cachix/install-nix-action@v31.1.0
+      - uses: cachix/install-nix-action@v31.4.0
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - run: nix build
       - run: nix flake check
   publish-cachix:
-    needs: [ omnilint, rust, nix ]
+    needs: [omnilint, rust, nix]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4.2.2
         with:
           fetch-depth: 0
       - id: version
-        uses: docker://lpenz/ghaction-version-gen:0.14.1
-      - uses: cachix/install-nix-action@v31.1.0
+        uses: docker://lpenz/ghaction-version-gen:0.16.0
+      - uses: cachix/install-nix-action@v31.4.0
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - uses: cachix/cachix-action@v16
