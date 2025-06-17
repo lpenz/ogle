@@ -3,6 +3,7 @@
 // file 'LICENSE', which is part of this source code package.
 
 use std::collections::VecDeque;
+use tracing::instrument;
 
 #[derive(Debug, Default)]
 pub struct Differ {
@@ -12,11 +13,13 @@ pub struct Differ {
 }
 
 impl Differ {
+    #[instrument(level = "debug")]
     pub fn reset(&mut self) {
         self.changed = false;
         self.iline = 0;
     }
 
+    #[instrument(level = "debug", skip(self), fields(iline=self.iline, line=line))]
     pub fn push(&mut self, line: String) {
         if self.changed {
             // If we are in "changed" mode, we just append the lines:
@@ -37,7 +40,7 @@ impl Differ {
         }
     }
 
-    #[cfg(test)]
+    #[instrument(level = "debug", skip(self), fields(changed=self.changed))]
     pub fn has_changed(&self) -> bool {
         self.changed
     }

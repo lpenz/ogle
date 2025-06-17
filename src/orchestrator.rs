@@ -14,8 +14,9 @@ use crate::time_wrapper::Duration;
 
 #[instrument(level = "debug")]
 pub async fn run<SI: SysInputApi>(cli: Cli, sys: SI) -> Result<()> {
-    let cli_period = Duration::seconds(cli.period.into());
-    let input_stream = InputStream::new(sys.clone(), cli.get_cmd(), cli_period)?;
+    let refresh = Duration::milliseconds(250);
+    let sleep = Duration::seconds(cli.period.into());
+    let input_stream = InputStream::new(sys.clone(), cli.get_cmd(), refresh, sleep)?;
     let pipe = Pipe::new(cli.get_cmd(), input_stream);
     output_sink(pipe).await
 }

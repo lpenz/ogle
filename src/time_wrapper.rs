@@ -65,6 +65,9 @@ pub struct Duration(chrono::Duration);
 impl Duration {
     pub const MAX: Self = Self(chrono::Duration::MAX);
 
+    /// An absurd duration (a millenia) that is safer to add/subtract without overflowing.
+    pub const INFINITE: Self = Self::seconds(3600 * 24 * 365 * 1000);
+
     pub const fn seconds(value: i64) -> Self {
         Self(chrono::Duration::seconds(value))
     }
@@ -91,6 +94,12 @@ impl Default for Duration {
 impl From<Duration> for std::time::Duration {
     fn from(duration: Duration) -> Self {
         duration.0.to_std().unwrap()
+    }
+}
+
+impl From<Duration> for tokio::time::Interval {
+    fn from(duration: Duration) -> Self {
+        tokio::time::interval(duration.into())
     }
 }
 

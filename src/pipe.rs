@@ -8,6 +8,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use tokio_stream::Stream;
 
+use crate::differ::Differ;
 use crate::input_stream::InputData;
 use crate::input_stream::InputItem;
 use crate::input_stream::InputStream;
@@ -21,6 +22,7 @@ pub struct Pipe<SI: SysInputApi> {
     input_stream: InputStream<SI>,
     cmd: Cmd,
     pending: VecDeque<OutputCommand>,
+    differ: Differ,
 }
 
 impl<SI: SysInputApi> Pipe<SI> {
@@ -29,6 +31,7 @@ impl<SI: SysInputApi> Pipe<SI> {
             input_stream,
             cmd,
             pending: VecDeque::default(),
+            differ: Differ::default(),
         }
     }
 }
@@ -39,48 +42,66 @@ impl<SI: SysInputApi> PipeProjection<'_, SI> {
         self.pending
             .push_back(OutputCommand::WriteAll(WriteAll(s.as_bytes().to_vec())))
     }
-
-    fn flush(&mut self) -> Poll<Option<OutputCommand>> {
-        if let Some(output) = self.pending.pop_front() {
-            Poll::Ready(Some(output))
-        } else {
-            Poll::Pending
-        }
-    }
 }
 
 impl<SI: SysInputApi> Stream for Pipe<SI> {
     type Item = OutputCommand;
 
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let mut this = self.project();
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let mut this = self.as_mut().project();
+        if let Some(output) = this.pending.pop_front() {
+            return Poll::Ready(Some(output));
+        }
         let item = Pin::new(&mut this.input_stream).poll_next(cx);
         match item {
-            Poll::Pending => {}
+            Poll::Pending => Poll::Pending,
             Poll::Ready(Some(InputItem { time, data })) => match data {
                 InputData::Start => {
                     this.outline(ofmt!(&time, "start execution"));
                     this.outline(format!("+ {}", this.cmd));
+                    this.differ.reset();
+                    self.poll_next(cx)
                 }
                 InputData::LineOut(line) => {
-                    this.outline(line);
+                    this.differ.push(line);
+                    let mut differ = std::mem::take(this.differ);
+                    if differ.has_changed() {
+                        for line in &mut differ {
+                            this.outline(line);
+                        }
+                    }
+                    *this.differ = differ;
+                    self.poll_next(cx)
                 }
                 InputData::LineErr(line) => {
-                    this.outline(line);
+                    this.differ.push(line);
+                    let mut differ = std::mem::take(this.differ);
+                    if differ.has_changed() {
+                        for line in &mut differ {
+                            this.outline(line);
+                        }
+                    }
+                    *this.differ = differ;
+                    self.poll_next(cx)
                 }
                 InputData::Done(sts) => {
                     this.outline(ofmt!(&time, "done {:?}", sts));
+                    self.poll_next(cx)
                 }
                 InputData::Err(e) => {
                     this.outline(ofmt!(&time, "err {:?}", e));
+                    self.poll_next(cx)
                 }
-                InputData::Tick => {}
+                InputData::RunTick => {
+                    this.outline(ofmt!(&time, "run   tick"));
+                    self.poll_next(cx)
+                }
+                InputData::SleepTick => {
+                    this.outline(ofmt!(&time, "sleep tick"));
+                    self.poll_next(cx)
+                }
             },
-            Poll::Ready(None) => {
-                // We don't care if the input dried out, it's going to
-                // run again soon anyway.
-            }
-        };
-        this.flush()
+            Poll::Ready(None) => Poll::Ready(None),
+        }
     }
 }
