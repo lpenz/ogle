@@ -10,7 +10,7 @@ use clap::Parser;
 #[cfg(test)]
 use color_eyre::Result;
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
 pub struct Cli {
     /// Period to sleep between executions

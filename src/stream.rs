@@ -6,8 +6,8 @@ use color_eyre::Result;
 use std::convert::TryFrom;
 use std::process::ExitStatus;
 use tokio_process_stream as tps;
-use tokio_stream::wrappers::IntervalStream;
 use tokio_stream::StreamExt;
+use tokio_stream::wrappers::IntervalStream;
 
 use crate::cli::Cli;
 use crate::time_wrapper::Duration;
@@ -39,7 +39,7 @@ impl From<tokio::time::Instant> for StreamItem {
 }
 
 pub fn stream_create(
-    cli: &Cli,
+    cli: Cli,
     refresh_delay: Duration,
 ) -> Result<impl StreamExt<Item = StreamItem> + std::marker::Unpin + Send + 'static> {
     let cmd = cli.get_command();
@@ -51,8 +51,8 @@ pub fn stream_create(
 #[cfg(test)]
 mod tests {
     use clap::Parser;
-    use color_eyre::eyre::eyre;
     use color_eyre::Result;
+    use color_eyre::eyre::eyre;
     use tokio_stream::StreamExt;
 
     use crate::cli::Cli;
@@ -63,7 +63,8 @@ mod tests {
         cmd: &[&str],
     ) -> Result<impl StreamExt<Item = StreamItem> + std::marker::Unpin + Send + 'static> {
         let duration = Duration::milliseconds(5000);
-        stream_create(&Cli::try_parse_from(cmd)?, duration)
+        let cmd = Cli::try_parse_from(cmd)?;
+        stream_create(cmd, duration)
     }
 
     async fn stream_next<T>(stream: &mut T) -> Result<StreamItem>

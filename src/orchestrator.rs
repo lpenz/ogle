@@ -2,18 +2,18 @@
 // This file is subject to the terms and conditions defined in
 // file 'LICENSE', which is part of this source code package.
 
-use color_eyre::eyre::eyre;
 use color_eyre::Result;
+use color_eyre::eyre::eyre;
 use std::process::ExitStatus;
 use tokio_stream::StreamExt;
+use tracing::Level;
 use tracing::event;
 use tracing::instrument;
-use tracing::Level;
 
 use crate::cli::Cli;
 use crate::output_trait::Output;
-use crate::stream::stream_create;
 use crate::stream::StreamItem;
+use crate::stream::stream_create;
 use crate::time_wrapper::Duration;
 use crate::time_wrapper::Instant;
 
@@ -52,7 +52,7 @@ pub async fn run<O: Output + std::fmt::Debug>(cli: &Cli, mut output: O) -> Resul
     let cli_period = Duration::seconds(cli.period.into());
     loop {
         output.run_start()?;
-        let stream = stream_create(cli, REFRESH_DELAY)?;
+        let stream = stream_create(cli.clone(), REFRESH_DELAY)?;
         let task = stream_task(&mut output, stream);
         if let Some(result) = task.await? {
             if (cli.until_success && result.success()) || (cli.until_failure && !result.success()) {
