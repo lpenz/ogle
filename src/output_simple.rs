@@ -25,13 +25,6 @@ impl Default for OutputSimple {
     }
 }
 
-impl OutputSimple {
-    #[instrument(level = "debug")]
-    pub fn new() -> OutputSimple {
-        OutputSimple::default()
-    }
-}
-
 impl Output for OutputSimple {
     #[instrument(level = "debug", fields(self=?self.start))]
     fn run_start(&mut self) -> Result<()> {
