@@ -17,6 +17,6 @@ pub async fn run<SI: SysInputApi>(cli: Cli, sys: SI) -> Result<()> {
     let refresh = Duration::milliseconds(250);
     let sleep = Duration::seconds(cli.period.into());
     let input_stream = InputStream::new(sys.clone(), cli.get_cmd(), refresh, sleep)?;
-    let pipe = Pipe::new(cli.get_cmd(), input_stream);
+    let pipe = Pipe::new(cli.get_cmd(), refresh, sleep, input_stream);
     output_sink(pipe).await
 }

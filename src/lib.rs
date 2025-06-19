@@ -12,7 +12,7 @@ mod misc;
 mod cli;
 mod input_stream;
 mod orchestrator;
-// mod progbar;
+mod progbar;
 mod time_wrapper;
 
 mod term_wrapper;

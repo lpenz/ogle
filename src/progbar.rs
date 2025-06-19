@@ -2,31 +2,23 @@
 // This file is subject to the terms and conditions defined in
 // file 'LICENSE', which is part of this source code package.
 
-use color_eyre::Result;
-
 use crate::time_wrapper::Duration;
 use crate::time_wrapper::Instant;
+use color_eyre::Result;
 
 // Basic functions:
 
-pub fn progbar_sleeping(
-    timestamp: &Instant,
-    now: &Instant,
-    start: &Instant,
-    duration: &Duration,
-) -> String {
-    if duration.num_seconds() > 1 {
-        let end = start + duration;
-        let left = &end - now;
-        ofmt!(timestamp, "sleeping for {}s", left.num_seconds() + 1)
+pub fn progbar_sleeping(sleep: &Duration, now: &Instant, deadline: &Instant) -> String {
+    if sleep.num_seconds() > 1 {
+        let left = deadline - now;
+        format!("sleeping for {}s", left.num_seconds() + 1,)
     } else {
-        ofmt!(timestamp, "sleeping")
+        "sleeping".to_owned()
     }
 }
 
 pub fn progbar_running(
     width: usize,
-    timestamp: &Instant,
     now: &Instant,
     start: &Instant,
     duration: Option<&Duration>,
@@ -36,9 +28,9 @@ pub fn progbar_running(
     let duration = duration.copied().unwrap_or_default();
     let duration_millis = duration.num_milliseconds();
     if duration_millis == 0 || refresh.num_milliseconds() == 0 {
-        return Ok(ofmt!(timestamp, "running [{}]", spinner));
+        return Ok(format!("running [{}]", spinner));
     }
-    let head = ofmt!(timestamp, "running ");
+    let head = "running ".to_string();
     let tail = format!(" [{spinner}]");
     let barsize = {
         let b = usize::try_from(duration_millis / refresh.num_milliseconds())?;
@@ -54,7 +46,7 @@ pub fn progbar_running(
         }
     };
     Ok(if barsize <= 1 {
-        ofmt!(timestamp, "running [{}]", spinner)
+        format!("running [{}]", spinner)
     } else {
         let elapsed = now - start;
         let ratio = elapsed.num_milliseconds() as f32 / duration_millis as f32;
@@ -75,4 +67,17 @@ pub fn progbar_running(
             right = right
         )
     })
+}
+
+pub fn spinner_get(spinner: &mut char) -> char {
+    *spinner = match spinner {
+        '/' => '-',
+        '-' => '\\',
+        '\\' => '|',
+        '|' => '/',
+        _ => {
+            panic!("unknown spinner position [{}]", spinner)
+        }
+    };
+    *spinner
 }

@@ -12,35 +12,113 @@ use crate::differ::Differ;
 use crate::input_stream::InputData;
 use crate::input_stream::InputItem;
 use crate::input_stream::InputStream;
+use crate::output_sink::ClearLine;
+use crate::output_sink::MoveCursorUp;
 use crate::output_sink::OutputCommand;
 use crate::output_sink::WriteAll;
+use crate::progbar::progbar_running;
+use crate::progbar::progbar_sleeping;
+use crate::progbar::spinner_get;
 use crate::sys_input::Cmd;
 use crate::sys_input::SysInputApi;
+use crate::time_wrapper::Duration;
+use crate::time_wrapper::Instant;
 
 #[pin_project(project = PipeProjection)]
 pub struct Pipe<SI: SysInputApi> {
-    input_stream: InputStream<SI>,
     cmd: Cmd,
+    refresh: Duration,
+    sleep: Duration,
+    input_stream: InputStream<SI>,
     pending: VecDeque<OutputCommand>,
     differ: Differ,
+    spinner: char,
+    start: Instant, // can be start of running or sleep
+    printed_status: bool,
 }
 
 impl<SI: SysInputApi> Pipe<SI> {
-    pub fn new(cmd: Cmd, input_stream: InputStream<SI>) -> Self {
+    pub fn new(
+        cmd: Cmd,
+        refresh: Duration,
+        sleep: Duration,
+        input_stream: InputStream<SI>,
+    ) -> Self {
         Pipe {
-            input_stream,
             cmd,
+            refresh,
+            sleep,
+            input_stream,
             pending: VecDeque::default(),
             differ: Differ::default(),
+            spinner: '-',
+            start: Instant::default(),
+            printed_status: false,
         }
     }
 }
 
 impl<SI: SysInputApi> PipeProjection<'_, SI> {
-    fn outline(&mut self, mut s: String) {
+    fn _println(&mut self, mut s: String) {
         s.push('\n');
         self.pending
             .push_back(OutputCommand::WriteAll(WriteAll(s.as_bytes().to_vec())))
+    }
+
+    fn status_maybe_clear(&mut self) {
+        if *self.printed_status {
+            self.pending
+                .push_back(OutputCommand::MoveCursorUp(MoveCursorUp(1)));
+            self.pending
+                .push_back(OutputCommand::ClearLine(ClearLine {}));
+        }
+    }
+
+    fn println(&mut self, s: String) {
+        self.status_maybe_clear();
+        self._println(s);
+        *self.printed_status = false;
+    }
+
+    fn process_line(&mut self, line: String) {
+        self.differ.push(line);
+        let mut differ = std::mem::take(self.differ);
+        if differ.has_changed() {
+            for line in &mut differ {
+                self.println(line);
+            }
+        }
+        *self.differ = differ;
+    }
+
+    fn status_update_running(&mut self, now: Instant) {
+        self.status_maybe_clear();
+        let mut spinner = *self.spinner;
+        self._println(ofmt!(
+            &now,
+            "{}",
+            progbar_running(
+                150,                       // width: usize,
+                &now,                      // now: &Instant,
+                self.start,                // start: &Instant,
+                None,                      // duration: Option<&Duration>,
+                self.refresh,              // refresh: &Duration,
+                spinner_get(&mut spinner)  // spinner: char,
+            )
+            .unwrap()
+        ));
+        *self.spinner = spinner;
+        *self.printed_status = true;
+    }
+
+    fn status_update_sleeping(&mut self, now: Instant, deadline: Instant) {
+        self.status_maybe_clear();
+        self._println(ofmt!(
+            self.start,
+            "{}",
+            progbar_sleeping(self.sleep, &now, &deadline)
+        ));
+        *self.printed_status = true;
     }
 }
 
@@ -55,49 +133,43 @@ impl<SI: SysInputApi> Stream for Pipe<SI> {
         let item = Pin::new(&mut this.input_stream).poll_next(cx);
         match item {
             Poll::Pending => Poll::Pending,
-            Poll::Ready(Some(InputItem { time, data })) => match data {
-                InputData::Start => {
-                    this.outline(ofmt!(&time, "start execution"));
-                    this.outline(format!("+ {}", this.cmd));
+            Poll::Ready(Some(InputItem { time: now, data })) => match data {
+                InputData::RunStart => {
+                    this.println(ofmt!(&now, "start execution"));
+                    this.println(format!("+ {}", this.cmd));
                     this.differ.reset();
+                    *this.start = now;
+                    this.status_update_running(now);
+                    self.poll_next(cx)
+                }
+                InputData::SleepStart => {
+                    *this.start = now;
                     self.poll_next(cx)
                 }
                 InputData::LineOut(line) => {
-                    this.differ.push(line);
-                    let mut differ = std::mem::take(this.differ);
-                    if differ.has_changed() {
-                        for line in &mut differ {
-                            this.outline(line);
-                        }
-                    }
-                    *this.differ = differ;
+                    this.process_line(line);
+                    this.status_update_running(now);
                     self.poll_next(cx)
                 }
                 InputData::LineErr(line) => {
-                    this.differ.push(line);
-                    let mut differ = std::mem::take(this.differ);
-                    if differ.has_changed() {
-                        for line in &mut differ {
-                            this.outline(line);
-                        }
-                    }
-                    *this.differ = differ;
+                    this.process_line(line);
+                    this.status_update_running(now);
                     self.poll_next(cx)
                 }
                 InputData::Done(sts) => {
-                    this.outline(ofmt!(&time, "done {:?}", sts));
+                    this.println(ofmt!(&now, "done {:?}", sts));
                     self.poll_next(cx)
                 }
                 InputData::Err(e) => {
-                    this.outline(ofmt!(&time, "err {:?}", e));
+                    this.println(ofmt!(&now, "err {:?}", e));
                     self.poll_next(cx)
                 }
                 InputData::RunTick => {
-                    this.outline(ofmt!(&time, "run   tick"));
+                    this.status_update_running(now);
                     self.poll_next(cx)
                 }
-                InputData::SleepTick => {
-                    this.outline(ofmt!(&time, "sleep tick"));
+                InputData::SleepTick(deadline) => {
+                    this.status_update_sleeping(now, deadline);
                     self.poll_next(cx)
                 }
             },

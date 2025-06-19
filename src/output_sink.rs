@@ -19,7 +19,7 @@ pub trait OutputCommandTrait {
     fn execute(&self);
 }
 
-pub struct MoveCursorUp(usize);
+pub struct MoveCursorUp(pub usize);
 impl OutputCommandTrait for MoveCursorUp {
     fn execute(&self) {
         move_cursor_up(self.0).unwrap()
