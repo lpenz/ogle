@@ -134,16 +134,12 @@ impl<SI: SysInputApi> Stream for Pipe<SI> {
         match item {
             Poll::Pending => Poll::Pending,
             Poll::Ready(Some(InputItem { time: now, data })) => match data {
-                InputData::RunStart => {
+                InputData::Start => {
                     this.println(ofmt!(&now, "start execution"));
                     this.println(format!("+ {}", this.cmd));
                     this.differ.reset();
                     *this.start = now;
                     this.status_update_running(now);
-                    self.poll_next(cx)
-                }
-                InputData::SleepStart => {
-                    *this.start = now;
                     self.poll_next(cx)
                 }
                 InputData::LineOut(line) => {
@@ -158,6 +154,8 @@ impl<SI: SysInputApi> Stream for Pipe<SI> {
                 }
                 InputData::Done(sts) => {
                     this.println(ofmt!(&now, "done {:?}", sts));
+                    // Sleeping starts now
+                    *this.start = now;
                     self.poll_next(cx)
                 }
                 InputData::Err(e) => {

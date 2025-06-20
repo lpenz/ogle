@@ -25,8 +25,7 @@ use crate::sys_input::SysInputVirtual;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InputData {
-    RunStart,
-    SleepStart,
+    Start,
     LineOut(String),
     LineErr(String),
     Done(ExitStatus),
@@ -78,14 +77,6 @@ impl InputItem {
 
 // InputStream ///////////////////////////////////////////////////////////////
 
-#[derive(Debug)]
-struct SleepingState {
-    /// When to wake up
-    deadline: Instant,
-    /// 1s ticker
-    ticker: IntervalStream,
-}
-
 #[derive(Debug, Default)]
 enum State {
     /// State where we start the process on the next iteration.
@@ -99,7 +90,12 @@ enum State {
         ticker: IntervalStream,
     },
     /// Sleeping between two process executions, yielding ticks.
-    Sleeping(Option<SleepingState>),
+    Sleeping {
+        /// When to wake up
+        deadline: Instant,
+        /// 1s ticker
+        ticker: IntervalStream,
+    },
     /// Don't execute the process again, either because of an exit
     /// condition or an error.
     Done,
@@ -137,12 +133,10 @@ impl<SI: SysInputApi> InputStream<SI> {
         Ok(())
     }
 
-    fn sleep(&mut self, now: Instant) -> InputItem {
+    fn sleep(&mut self, now: Instant) {
         let deadline = &now + &self.sleep;
         let ticker = IntervalStream::new(Duration::seconds(1).into());
-        self.state = State::Sleeping(Some(SleepingState { deadline, ticker }));
-        let tick = InputData::SleepTick(deadline);
-        InputItem::new(now, tick)
+        self.state = State::Sleeping { deadline, ticker };
     }
 }
 
@@ -175,18 +169,13 @@ impl<SI: SysInputApi> Stream for InputStream<SI> {
         let mut state = std::mem::take(&mut *this.state);
         return match state {
             State::Start => match self.run() {
-                Ok(_) => Poll::Ready(Some(InputItem::new(now, InputData::RunStart))),
+                Ok(_) => Poll::Ready(Some(InputItem::new(now, InputData::Start))),
                 Err(e) => Poll::Ready(Some(InputItem::new(now, e))),
             },
-            State::Sleeping(None) => {
-                // Set up sleeping state: deadline, ticker
-                self.sleep(now);
-                Poll::Ready(Some(InputItem::new(now, InputData::SleepStart)))
-            }
-            State::Sleeping(Some(SleepingState {
+            State::Sleeping {
                 deadline,
                 ref mut ticker,
-            })) => {
+            } => {
                 if let Poll::Ready(Some(_)) = Pin::new(ticker).poll_next(cx) {
                     let tick = InputData::SleepTick(deadline);
                     if now < deadline {
@@ -219,7 +208,7 @@ impl<SI: SysInputApi> Stream for InputStream<SI> {
                         if success && *this.exit_on_success || !success && *this.exit_on_failure {
                             *this.state = State::Done;
                         } else {
-                            *this.state = State::Sleeping(None);
+                            self.sleep(now);
                         }
                         Poll::Ready(Some(InputItem::new(now, item)))
                     }
@@ -287,7 +276,7 @@ mod tests {
             vec![
                 InputItem {
                     time: now.incr(),
-                    data: InputData::RunStart
+                    data: InputData::Start
                 },
                 InputItem {
                     time: now.incr(),
@@ -319,7 +308,7 @@ mod tests {
             vec![
                 InputItem {
                     time: now.incr(),
-                    data: InputData::RunStart,
+                    data: InputData::Start,
                 },
                 InputItem {
                     time: now.incr(),
