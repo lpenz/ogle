@@ -34,6 +34,7 @@ pub struct Pipe<SI: SysInputApi> {
     differ: Differ,
     spinner: char,
     start: Instant, // can be start of running or sleep
+    duration: Option<Duration>,
     printed_status: bool,
 }
 
@@ -53,6 +54,7 @@ impl<SI: SysInputApi> Pipe<SI> {
             differ: Differ::default(),
             spinner: '-',
             start: Instant::default(),
+            duration: None,
             printed_status: false,
         }
     }
@@ -101,7 +103,7 @@ impl<SI: SysInputApi> PipeProjection<'_, SI> {
                 150,                       // width: usize,
                 &now,                      // now: &Instant,
                 self.start,                // start: &Instant,
-                None,                      // duration: Option<&Duration>,
+                *self.duration,            // duration: Option<&Duration>,
                 self.refresh,              // refresh: &Duration,
                 spinner_get(&mut spinner)  // spinner: char,
             )
@@ -154,6 +156,7 @@ impl<SI: SysInputApi> Stream for Pipe<SI> {
                 }
                 InputData::Done(sts) => {
                     this.println(ofmt!(&now, "done {:?}", sts));
+                    *this.duration = Some(&now - this.start);
                     // Sleeping starts now
                     *this.start = now;
                     self.poll_next(cx)

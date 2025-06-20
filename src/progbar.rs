@@ -21,11 +21,11 @@ pub fn progbar_running(
     width: usize,
     now: &Instant,
     start: &Instant,
-    duration: Option<&Duration>,
+    duration: Option<Duration>,
     refresh: &Duration,
     spinner: char,
 ) -> Result<String> {
-    let duration = duration.copied().unwrap_or_default();
+    let duration = duration.unwrap_or_default();
     let duration_millis = duration.num_milliseconds();
     if duration_millis == 0 || refresh.num_milliseconds() == 0 {
         return Ok(format!("running [{}]", spinner));
