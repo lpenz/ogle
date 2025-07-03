@@ -15,10 +15,10 @@ keywords = ["watch", "command-line"]
 [dependencies]
 clap = { version = "4.5.40", features = ["derive"] }
 color-eyre = "0.6.5"
-tokio = "1.45.1"
+tokio = { version = "1.46.0", features = ["macros", "rt-multi-thread"] }
 tokio-stream = "0.1.17"
-console = "0.15.11"
-tokio-process-stream = "0.4.0"
+console = "0.16.0"
+tokio-process-stream = "0.4.1"
 env_logger = "0.11.8"
 tracing = { version = "0.1.41", features = ["log"] }
 mockall = "0.13.1"

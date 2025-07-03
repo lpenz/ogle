@@ -40,15 +40,13 @@ pub fn progbar_running(
         return Ok(ofmt!(timestamp, "running [{}]", spinner));
     }
     let head = ofmt!(timestamp, "running ");
-    let tail = format!(" [{}]", spinner);
+    let tail = format!(" [{spinner}]");
     let barsize = {
         let b = (duration_millis / refresh.num_milliseconds()) as usize;
         let overhead = head.len() + tail.len() + 1;
         debug_assert!(
             width >= overhead,
-            "width {} not greater than overhead {}",
-            width,
-            overhead
+            "width {width} not greater than overhead {overhead}",
         );
         if b + overhead > width {
             width - overhead
