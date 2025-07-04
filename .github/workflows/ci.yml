@@ -13,6 +13,7 @@ jobs:
       coveralls: true
       deb: true
       rpm: true
+      enable_cargo-semver-checks: false
       publish_cratesio: true
       publish_github_release: true
       publish_github_release_files: |
