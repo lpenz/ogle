@@ -39,8 +39,8 @@ pub fn progbar_running(
     if duration_millis == 0 || refresh.num_milliseconds() == 0 {
         return Ok(ofmt!(timestamp, "running [{}]", spinner));
     }
-    let head = ofmt!(timestamp, "running ");
-    let tail = format!(" [{spinner}]");
+    let head = ofmt!(timestamp, "running [");
+    let tail = format!("] [{spinner}]");
     let barsize = {
         let b = (duration_millis / refresh.num_milliseconds()) as usize;
         let overhead = head.len() + tail.len() + 1;
@@ -67,7 +67,7 @@ pub fn progbar_running(
         let right = barsize.saturating_sub(left);
         let marker = if elapsed > duration { "=" } else { ">" };
         format!(
-            "{}[{:=>left$}{:right$}]{}",
+            "{}{:=>left$}{:right$}{}",
             head,
             marker,
             "",
