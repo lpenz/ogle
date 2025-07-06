@@ -527,7 +527,7 @@ dependencies = [
 
 [[package]]
 name = "ogle"
-version = "2.1.4"
+version = "2.1.5"
 dependencies = [
  "chrono",
  "clap",
