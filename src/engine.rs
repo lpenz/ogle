@@ -27,13 +27,13 @@ use crate::user_wrapper::UserStream;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EData {
-    Start,
+    StartRun,
+    StartSleep(Instant),
     LineOut(String),
     LineErr(String),
     Done(ExitSts),
     Err(std::io::ErrorKind),
-    RunTick,
-    SleepTick(Instant),
+    Tick,
 }
 
 impl From<process_wrapper::Item> for EData {
@@ -84,6 +84,7 @@ enum State {
     /// State where we start the process on the next iteration.
     #[default]
     Start,
+    StartSleeping,
     /// The process is running and we are yielding lines and ticks.
     Running {
         /// Events coming from the running process
@@ -140,10 +141,11 @@ impl<SI: SysApi> Engine<SI> {
         Ok(())
     }
 
-    fn sleep(&mut self, now: Instant) {
+    fn sleep(&mut self, now: Instant) -> EItem {
         let deadline = &now + &self.sleep;
         let ticker = IntervalStream::new(Duration::seconds(1).into());
         self.state = State::Sleeping { deadline, ticker };
+        EItem::new(now, EData::StartSleep(deadline))
     }
 }
 
@@ -169,9 +171,13 @@ impl<SI: SysApi> Stream for Engine<SI> {
         let mut state = std::mem::take(&mut *this.state);
         return match state {
             State::Start => match self.run() {
-                Ok(_) => Poll::Ready(Some(EItem::new(now, EData::Start))),
+                Ok(_) => Poll::Ready(Some(EItem::new(now, EData::StartRun))),
                 Err(e) => Poll::Ready(Some(EItem::new(now, e))),
             },
+            State::StartSleeping => {
+                let item = self.sleep(now);
+                Poll::Ready(Some(item))
+            }
             State::Sleeping {
                 deadline,
                 ref mut ticker,
@@ -180,7 +186,7 @@ impl<SI: SysApi> Stream for Engine<SI> {
                     *this.state = State::Done;
                     Poll::Ready(None)
                 } else if let Poll::Ready(Some(_)) = Pin::new(ticker).poll_next(cx) {
-                    let tick = EData::SleepTick(deadline);
+                    let tick = EData::Tick;
                     if now < deadline {
                         *this.state = state;
                         Poll::Ready(Some(EItem::new(now, tick)))
@@ -214,7 +220,7 @@ impl<SI: SysApi> Stream for Engine<SI> {
                         {
                             *this.state = State::Done;
                         } else {
-                            self.sleep(now);
+                            *this.state = State::StartSleeping;
                         }
                         Poll::Ready(Some(EItem::new(now, item)))
                     }
@@ -236,7 +242,7 @@ impl<SI: SysApi> Stream for Engine<SI> {
                     // Process doesn't have an item, it must be the ticker
                     if let Poll::Ready(Some(_)) = Pin::new(ticker).poll_next(cx) {
                         *this.state = state;
-                        Poll::Ready(Some(EItem::new(now, EData::RunTick)))
+                        Poll::Ready(Some(EItem::new(now, EData::Tick)))
                     } else {
                         *this.state = state;
                         Poll::Pending
@@ -303,7 +309,7 @@ mod tests {
             vec![
                 EItem {
                     time: now.incr(),
-                    data: EData::Start
+                    data: EData::StartRun
                 },
                 EItem {
                     time: now.incr(),
@@ -335,7 +341,7 @@ mod tests {
             vec![
                 EItem {
                     time: now.incr(),
-                    data: EData::Start,
+                    data: EData::StartRun,
                 },
                 EItem {
                     time: now.incr(),

@@ -36,6 +36,7 @@ pub struct Pipe<SI: SysApi> {
     start: Instant, // can be start of running or sleep
     duration: Option<Duration>,
     printed_status: bool,
+    sleep_deadline: Option<Instant>,
 }
 
 impl<SI: SysApi> Pipe<SI> {
@@ -51,6 +52,7 @@ impl<SI: SysApi> Pipe<SI> {
             start: Instant::default(),
             duration: None,
             printed_status: false,
+            sleep_deadline: None,
         }
     }
 }
@@ -131,12 +133,17 @@ impl<SI: SysApi> Stream for Pipe<SI> {
         match item {
             Poll::Pending => Poll::Pending,
             Poll::Ready(Some(EItem { time: now, data })) => match data {
-                EData::Start => {
+                EData::StartRun => {
                     this.println(ofmt!(&now, "start execution"));
                     this.println(format!("+ {}", this.cmd));
                     this.differ.reset();
+                    *this.sleep_deadline = None;
                     *this.start = now;
                     this.status_update_running(now);
+                    self.poll_next(cx)
+                }
+                EData::StartSleep(deadline) => {
+                    self.sleep_deadline = Some(deadline);
                     self.poll_next(cx)
                 }
                 EData::LineOut(line) => {
@@ -160,12 +167,12 @@ impl<SI: SysApi> Stream for Pipe<SI> {
                     this.println(ofmt!(&now, "err {:?}", e));
                     self.poll_next(cx)
                 }
-                EData::RunTick => {
-                    this.status_update_running(now);
-                    self.poll_next(cx)
-                }
-                EData::SleepTick(deadline) => {
-                    this.status_update_sleeping(now, deadline);
+                EData::Tick => {
+                    if let Some(deadline) = *this.sleep_deadline {
+                        this.status_update_sleeping(now, deadline);
+                    } else {
+                        this.status_update_running(now);
+                    }
                     self.poll_next(cx)
                 }
             },
