@@ -55,6 +55,9 @@
 //!     output. As we are currently wrapping [`console`] and its
 //!     functions require a [`console::Term`] object, we end up using
 //!     a mutex here to abstract the singleton.
+//!   - [`user_wrapper`]: abstract user interaction. At the moment, we
+//!     just monitor `stdin` in line mode, and ogle exits gracefully
+//!     when that's detected.
 //!   - [`time_wrapper`]: home of the
 //!     [`Instant`](time_wrapper::Instant) and
 //!     [`Duration`](time_wrapper::Duration) types, which use types
@@ -68,7 +71,7 @@
 //!   in various ways.
 //!
 //! ```no_compile
-//! sys -> input -> view -> output
+//! sys -> engine -> view -> output
 //! ```
 //!
 //! [watch (1)]: https://linux.die.net/man/1/watch
@@ -92,7 +95,7 @@ mod user_wrapper;
 
 mod sys;
 
-mod input;
+mod engine;
 
 mod view;
 

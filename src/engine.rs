@@ -2,6 +2,10 @@
 // This file is subject to the terms and conditions defined in
 // file 'LICENSE', which is part of this source code package.
 
+//! Main lower-level module that takes care of running the command and
+//! yielding all possible events into a coherent stream of timestamped
+//! events.
+
 use color_eyre::Result;
 use pin_project::pin_project;
 use std::pin::Pin;
@@ -19,13 +23,10 @@ use crate::time_wrapper::Duration;
 use crate::time_wrapper::Instant;
 use crate::user_wrapper::UserStream;
 
-#[cfg(test)]
-use crate::sys::SysVirtual;
-
-// InputData, InputItem //////////////////////////////////////////////////////
+// EData, EItem //////////////////////////////////////////////////////
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum InputData {
+pub enum EData {
     Start,
     LineOut(String),
     LineErr(String),
@@ -35,39 +36,39 @@ pub enum InputData {
     SleepTick(Instant),
 }
 
-impl From<process_wrapper::Item> for InputData {
+impl From<process_wrapper::Item> for EData {
     fn from(item: process_wrapper::Item) -> Self {
         match item {
-            process_wrapper::Item::Stdout(l) => InputData::LineOut(l),
-            process_wrapper::Item::Stderr(l) => InputData::LineErr(l),
-            process_wrapper::Item::Done(Ok(sts)) => InputData::Done(sts),
-            process_wrapper::Item::Done(Err(e)) => InputData::Err(e),
+            process_wrapper::Item::Stdout(l) => EData::LineOut(l),
+            process_wrapper::Item::Stderr(l) => EData::LineErr(l),
+            process_wrapper::Item::Done(Ok(sts)) => EData::Done(sts),
+            process_wrapper::Item::Done(Err(e)) => EData::Err(e),
         }
     }
 }
 
-impl From<std::io::ErrorKind> for InputData {
+impl From<std::io::ErrorKind> for EData {
     fn from(e: std::io::ErrorKind) -> Self {
-        InputData::Err(e)
+        EData::Err(e)
     }
 }
 
-impl From<std::io::Error> for InputData {
+impl From<std::io::Error> for EData {
     fn from(e: std::io::Error) -> Self {
         e.kind().into()
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct InputItem {
+pub struct EItem {
     pub time: Instant,
-    pub data: InputData,
+    pub data: EData,
 }
 
-impl InputItem {
-    pub fn new<D>(time: Instant, data: D) -> InputItem
+impl EItem {
+    pub fn new<D>(time: Instant, data: D) -> EItem
     where
-        D: Into<InputData>,
+        D: Into<EData>,
     {
         Self {
             time,
@@ -76,7 +77,7 @@ impl InputItem {
     }
 }
 
-// InputStream ///////////////////////////////////////////////////////////////
+// Engine ////////////////////////////////////////////////////////////
 
 #[derive(Debug, Default)]
 enum State {
@@ -104,7 +105,7 @@ enum State {
 
 #[pin_project]
 #[derive(Default, Debug)]
-pub struct InputStream<SI: SysApi> {
+pub struct Engine<SI: SysApi> {
     sys: SI,
     cmd: Cmd,
     refresh: Duration,
@@ -116,7 +117,7 @@ pub struct InputStream<SI: SysApi> {
     exit_by_user: bool,
 }
 
-impl<SI: SysApi> InputStream<SI> {
+impl<SI: SysApi> Engine<SI> {
     pub fn new(mut sys: SI, cmd: Cmd, refresh: Duration, sleep: Duration) -> Result<Self> {
         let user_stream = sys.user_stream();
         Ok(Self {
@@ -146,30 +147,8 @@ impl<SI: SysApi> InputStream<SI> {
     }
 }
 
-#[cfg(test)]
-impl InputStream<SysVirtual> {
-    pub fn new_virtual(
-        mut sys: SysVirtual,
-        exit_on_success: bool,
-        exit_on_failure: bool,
-    ) -> Result<Self> {
-        let user_stream = sys.user_stream();
-        Ok(Self {
-            sys,
-            cmd: Cmd::default(),
-            refresh: Duration::INFINITE,
-            sleep: Duration::INFINITE,
-            exit_on_success,
-            exit_on_failure,
-            state: State::Start,
-            user: user_stream,
-            exit_by_user: false,
-        })
-    }
-}
-
-impl<SI: SysApi> Stream for InputStream<SI> {
-    type Item = InputItem;
+impl<SI: SysApi> Stream for Engine<SI> {
+    type Item = EItem;
 
     #[instrument(level = "debug", ret, skip(cx))]
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
@@ -190,8 +169,8 @@ impl<SI: SysApi> Stream for InputStream<SI> {
         let mut state = std::mem::take(&mut *this.state);
         return match state {
             State::Start => match self.run() {
-                Ok(_) => Poll::Ready(Some(InputItem::new(now, InputData::Start))),
-                Err(e) => Poll::Ready(Some(InputItem::new(now, e))),
+                Ok(_) => Poll::Ready(Some(EItem::new(now, EData::Start))),
+                Err(e) => Poll::Ready(Some(EItem::new(now, e))),
             },
             State::Sleeping {
                 deadline,
@@ -201,13 +180,13 @@ impl<SI: SysApi> Stream for InputStream<SI> {
                     *this.state = State::Done;
                     Poll::Ready(None)
                 } else if let Poll::Ready(Some(_)) = Pin::new(ticker).poll_next(cx) {
-                    let tick = InputData::SleepTick(deadline);
+                    let tick = EData::SleepTick(deadline);
                     if now < deadline {
                         *this.state = state;
-                        Poll::Ready(Some(InputItem::new(now, tick)))
+                        Poll::Ready(Some(EItem::new(now, tick)))
                     } else {
                         *this.state = State::Start;
-                        Poll::Ready(Some(InputItem::new(now, tick)))
+                        Poll::Ready(Some(EItem::new(now, tick)))
                     }
                 } else {
                     *this.state = state;
@@ -221,11 +200,11 @@ impl<SI: SysApi> Stream for InputStream<SI> {
                 Poll::Ready(Some(item)) => match item {
                     process_wrapper::Item::Stdout(_) => {
                         *this.state = state;
-                        Poll::Ready(Some(InputItem::new(now, item)))
+                        Poll::Ready(Some(EItem::new(now, item)))
                     }
                     process_wrapper::Item::Stderr(_) => {
                         *this.state = state;
-                        Poll::Ready(Some(InputItem::new(now, item)))
+                        Poll::Ready(Some(EItem::new(now, item)))
                     }
                     process_wrapper::Item::Done(Ok(ref exitsts)) => {
                         let success = exitsts.success();
@@ -237,11 +216,11 @@ impl<SI: SysApi> Stream for InputStream<SI> {
                         } else {
                             self.sleep(now);
                         }
-                        Poll::Ready(Some(InputItem::new(now, item)))
+                        Poll::Ready(Some(EItem::new(now, item)))
                     }
                     process_wrapper::Item::Done(Err(e)) => {
                         *this.state = State::Done;
-                        Poll::Ready(Some(InputItem::new(now, e)))
+                        Poll::Ready(Some(EItem::new(now, e)))
                     }
                 },
                 Poll::Ready(None) => {
@@ -257,7 +236,7 @@ impl<SI: SysApi> Stream for InputStream<SI> {
                     // Process doesn't have an item, it must be the ticker
                     if let Poll::Ready(Some(_)) = Pin::new(ticker).poll_next(cx) {
                         *this.state = state;
-                        Poll::Ready(Some(InputItem::new(now, InputData::RunTick)))
+                        Poll::Ready(Some(EItem::new(now, EData::RunTick)))
                     } else {
                         *this.state = state;
                         Poll::Pending
@@ -272,7 +251,7 @@ impl<SI: SysApi> Stream for InputStream<SI> {
     }
 }
 
-// Tests /////////////////////////////////////////////////////////////////////
+// Tests /////////////////////////////////////////////////////////////
 
 #[cfg(test)]
 mod tests {
@@ -286,6 +265,27 @@ mod tests {
 
     use super::*;
 
+    impl Engine<SysVirtual> {
+        pub fn new_virtual(
+            mut sys: SysVirtual,
+            exit_on_success: bool,
+            exit_on_failure: bool,
+        ) -> Result<Self> {
+            let user_stream = sys.user_stream();
+            Ok(Self {
+                sys,
+                cmd: Cmd::default(),
+                refresh: Duration::INFINITE,
+                sleep: Duration::INFINITE,
+                exit_on_success,
+                exit_on_failure,
+                state: State::Start,
+                user: user_stream,
+                exit_by_user: false,
+            })
+        }
+    }
+
     #[tokio::test]
     async fn test_basic_success() -> Result<()> {
         let list = vec![
@@ -295,27 +295,27 @@ mod tests {
         ];
         let mut sys = SysVirtual::default();
         sys.set_items(list.clone());
-        let streamer = InputStream::new_virtual(sys, true, true)?;
+        let streamer = Engine::new_virtual(sys, true, true)?;
         let streamed = streamer.collect::<Vec<_>>().await;
         let mut now = Instant::default();
         assert_eq!(
             streamed,
             vec![
-                InputItem {
+                EItem {
                     time: now.incr(),
-                    data: InputData::Start
+                    data: EData::Start
                 },
-                InputItem {
+                EItem {
                     time: now.incr(),
-                    data: InputData::LineOut("stdout".to_owned())
+                    data: EData::LineOut("stdout".to_owned())
                 },
-                InputItem {
+                EItem {
                     time: now.incr(),
-                    data: InputData::LineErr("stderr".to_owned())
+                    data: EData::LineErr("stderr".to_owned())
                 },
-                InputItem {
+                EItem {
                     time: now.incr(),
-                    data: InputData::Done(ExitSts::default())
+                    data: EData::Done(ExitSts::default())
                 }
             ]
         );
@@ -327,19 +327,19 @@ mod tests {
         let list = vec![Item::Done(Err(io::ErrorKind::UnexpectedEof))];
         let mut sys = SysVirtual::default();
         sys.set_items(list.clone());
-        let streamer = InputStream::new_virtual(sys, false, false)?;
+        let streamer = Engine::new_virtual(sys, false, false)?;
         let streamed = streamer.collect::<Vec<_>>().await;
         let mut now = Instant::default();
         assert_eq!(
             streamed,
             vec![
-                InputItem {
+                EItem {
                     time: now.incr(),
-                    data: InputData::Start,
+                    data: EData::Start,
                 },
-                InputItem {
+                EItem {
                     time: now.incr(),
-                    data: InputData::Err(io::ErrorKind::UnexpectedEof)
+                    data: EData::Err(io::ErrorKind::UnexpectedEof)
                 }
             ]
         );

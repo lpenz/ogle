@@ -6,7 +6,7 @@ use color_eyre::Result;
 use tracing::instrument;
 
 use crate::cli::Cli;
-use crate::input::InputStream;
+use crate::engine::Engine;
 use crate::output::output;
 use crate::sys::SysApi;
 use crate::time_wrapper::Duration;
@@ -16,7 +16,7 @@ use crate::view::Pipe;
 pub async fn run<SI: SysApi>(cli: Cli, sys: SI) -> Result<()> {
     let refresh = Duration::milliseconds(250);
     let sleep = Duration::seconds(cli.period.into());
-    let input = InputStream::new(sys.clone(), cli.get_cmd(), refresh, sleep)?;
+    let input = Engine::new(sys.clone(), cli.get_cmd(), refresh, sleep)?;
     let view = Pipe::new(cli.get_cmd(), refresh, sleep, input);
     output(view).await
 }

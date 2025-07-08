@@ -9,9 +9,9 @@ use std::task::{Context, Poll};
 use tokio_stream::Stream;
 
 use crate::differ::Differ;
-use crate::input::InputData;
-use crate::input::InputItem;
-use crate::input::InputStream;
+use crate::engine::EData;
+use crate::engine::EItem;
+use crate::engine::Engine;
 use crate::output::ClearLine;
 use crate::output::MoveCursorUp;
 use crate::output::OutputCommand;
@@ -29,7 +29,7 @@ pub struct Pipe<SI: SysApi> {
     cmd: Cmd,
     refresh: Duration,
     sleep: Duration,
-    input: InputStream<SI>,
+    input: Engine<SI>,
     pending: VecDeque<OutputCommand>,
     differ: Differ,
     spinner: char,
@@ -39,7 +39,7 @@ pub struct Pipe<SI: SysApi> {
 }
 
 impl<SI: SysApi> Pipe<SI> {
-    pub fn new(cmd: Cmd, refresh: Duration, sleep: Duration, input: InputStream<SI>) -> Self {
+    pub fn new(cmd: Cmd, refresh: Duration, sleep: Duration, input: Engine<SI>) -> Self {
         Pipe {
             cmd,
             refresh,
@@ -130,8 +130,8 @@ impl<SI: SysApi> Stream for Pipe<SI> {
         let item = Pin::new(&mut this.input).poll_next(cx);
         match item {
             Poll::Pending => Poll::Pending,
-            Poll::Ready(Some(InputItem { time: now, data })) => match data {
-                InputData::Start => {
+            Poll::Ready(Some(EItem { time: now, data })) => match data {
+                EData::Start => {
                     this.println(ofmt!(&now, "start execution"));
                     this.println(format!("+ {}", this.cmd));
                     this.differ.reset();
@@ -139,32 +139,32 @@ impl<SI: SysApi> Stream for Pipe<SI> {
                     this.status_update_running(now);
                     self.poll_next(cx)
                 }
-                InputData::LineOut(line) => {
+                EData::LineOut(line) => {
                     this.process_line(line);
                     this.status_update_running(now);
                     self.poll_next(cx)
                 }
-                InputData::LineErr(line) => {
+                EData::LineErr(line) => {
                     this.process_line(line);
                     this.status_update_running(now);
                     self.poll_next(cx)
                 }
-                InputData::Done(sts) => {
+                EData::Done(sts) => {
                     this.println(ofmt!(&now, "exited with {}", sts));
                     *this.duration = Some(&now - this.start);
                     // Sleeping starts now
                     *this.start = now;
                     self.poll_next(cx)
                 }
-                InputData::Err(e) => {
+                EData::Err(e) => {
                     this.println(ofmt!(&now, "err {:?}", e));
                     self.poll_next(cx)
                 }
-                InputData::RunTick => {
+                EData::RunTick => {
                     this.status_update_running(now);
                     self.poll_next(cx)
                 }
-                InputData::SleepTick(deadline) => {
+                EData::SleepTick(deadline) => {
                     this.status_update_sleeping(now, deadline);
                     self.poll_next(cx)
                 }
