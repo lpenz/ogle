@@ -135,8 +135,9 @@ impl From<tps::Item<String>> for Item {
     }
 }
 
-/// A mockable wrapper for
-/// [`tokio_process_stream::ProcessLineStream`].
+/// A wrapper for [`tokio_process_stream::ProcessLineStream`].
+///
+/// Also provides a virtual implementation for use in tests.
 #[pin_project(project = ProcessStreamProj)]
 pub enum ProcessStream {
     /// Wrapper for [`tokio_process_stream::ProcessLineStream`].

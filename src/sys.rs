@@ -22,6 +22,7 @@ use crate::process_wrapper::ProcessStream;
 use crate::term_wrapper;
 use crate::time_wrapper::Duration;
 use crate::time_wrapper::Instant;
+use crate::user_wrapper::UserStream;
 
 // SysApi ////////////////////////////////////////////////////////////
 
@@ -46,6 +47,8 @@ pub trait SysApi: std::fmt::Debug + Clone + Default {
     /// stream gets the [`ExitStatus`](std::process::ExitStatus) when
     /// the process finishes.
     fn run_command(&mut self, command: Cmd) -> Result<ProcessStream, std::io::Error>;
+
+    fn user_stream(&mut self) -> Option<UserStream>;
 }
 
 // SysReal ///////////////////////////////////////////////////////////
@@ -64,6 +67,9 @@ impl SysApi for SysReal {
     fn run_command(&mut self, cmd: Cmd) -> Result<ProcessStream, std::io::Error> {
         let process_stream = tps::ProcessLineStream::try_from(Command::from(&cmd))?;
         Ok(ProcessStream::from(process_stream))
+    }
+    fn user_stream(&mut self) -> Option<UserStream> {
+        UserStream::new_real()
     }
 }
 
@@ -106,6 +112,9 @@ impl SysApi for SysVirtual {
     fn run_command(&mut self, _cmd: Cmd) -> Result<ProcessStream, std::io::Error> {
         let items = std::mem::take(&mut self.items);
         Ok(ProcessStream::from(items))
+    }
+    fn user_stream(&mut self) -> Option<UserStream> {
+        Some(UserStream::new_virtual())
     }
 }
 

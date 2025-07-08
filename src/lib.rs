@@ -88,6 +88,7 @@ mod progbar;
 mod process_wrapper;
 mod term_wrapper;
 mod time_wrapper;
+mod user_wrapper;
 
 mod sys;
 

@@ -17,6 +17,7 @@ use crate::process_wrapper::ProcessStream;
 use crate::sys::SysApi;
 use crate::time_wrapper::Duration;
 use crate::time_wrapper::Instant;
+use crate::user_wrapper::UserStream;
 
 #[cfg(test)]
 use crate::sys::SysVirtual;
@@ -111,10 +112,13 @@ pub struct InputStream<SI: SysApi> {
     exit_on_success: bool,
     exit_on_failure: bool,
     state: State,
+    user: Option<UserStream>,
+    exit_by_user: bool,
 }
 
 impl<SI: SysApi> InputStream<SI> {
-    pub fn new(sys: SI, cmd: Cmd, refresh: Duration, sleep: Duration) -> Result<Self> {
+    pub fn new(mut sys: SI, cmd: Cmd, refresh: Duration, sleep: Duration) -> Result<Self> {
+        let user_stream = sys.user_stream();
         Ok(Self {
             sys,
             cmd,
@@ -123,6 +127,8 @@ impl<SI: SysApi> InputStream<SI> {
             exit_on_success: false,
             exit_on_failure: false,
             state: State::Start,
+            user: user_stream,
+            exit_by_user: false,
         })
     }
 
@@ -143,10 +149,11 @@ impl<SI: SysApi> InputStream<SI> {
 #[cfg(test)]
 impl InputStream<SysVirtual> {
     pub fn new_virtual(
-        sys: SysVirtual,
+        mut sys: SysVirtual,
         exit_on_success: bool,
         exit_on_failure: bool,
     ) -> Result<Self> {
+        let user_stream = sys.user_stream();
         Ok(Self {
             sys,
             cmd: Cmd::default(),
@@ -155,6 +162,8 @@ impl InputStream<SysVirtual> {
             exit_on_success,
             exit_on_failure,
             state: State::Start,
+            user: user_stream,
+            exit_by_user: false,
         })
     }
 }
@@ -166,6 +175,18 @@ impl<SI: SysApi> Stream for InputStream<SI> {
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = self.as_mut().project();
         let now = this.sys.now();
+        if let Some(user) = this.user {
+            match Pin::new(user).poll_next(cx) {
+                Poll::Ready(Some(_)) => {
+                    *this.exit_by_user = true;
+                    *this.user = None;
+                }
+                Poll::Ready(None) => {
+                    *this.user = None;
+                }
+                Poll::Pending => {}
+            };
+        }
         let mut state = std::mem::take(&mut *this.state);
         return match state {
             State::Start => match self.run() {
@@ -176,7 +197,10 @@ impl<SI: SysApi> Stream for InputStream<SI> {
                 deadline,
                 ref mut ticker,
             } => {
-                if let Poll::Ready(Some(_)) = Pin::new(ticker).poll_next(cx) {
+                if *this.exit_by_user {
+                    *this.state = State::Done;
+                    Poll::Ready(None)
+                } else if let Poll::Ready(Some(_)) = Pin::new(ticker).poll_next(cx) {
                     let tick = InputData::SleepTick(deadline);
                     if now < deadline {
                         *this.state = state;
@@ -205,7 +229,10 @@ impl<SI: SysApi> Stream for InputStream<SI> {
                     }
                     process_wrapper::Item::Done(Ok(ref exitsts)) => {
                         let success = exitsts.success();
-                        if success && *this.exit_on_success || !success && *this.exit_on_failure {
+                        if *this.exit_by_user
+                            || success && *this.exit_on_success
+                            || !success && *this.exit_on_failure
+                        {
                             *this.state = State::Done;
                         } else {
                             self.sleep(now);
