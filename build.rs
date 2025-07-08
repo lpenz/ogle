@@ -49,7 +49,7 @@ fn generate_man_page<P: AsRef<path::Path>>(outdir: P) -> Result<()> {
         )
         .arg(Arg::new("COMMAND"))
         .arg(Arg::new("[ ARGS ]"))
-        .description("ogle runs the provided command, optionally via the shell, and stores its output. After 'period' has passed, it runs the same command again, and only starts printing its output if it's different than the previous execution. It also prints a timestamp, and keeps a status line with run information.")
+        .description("ogle runs the provided command and stores its output, and starts printing it only when it differs from the last execution.\n\nA status line shows a progress bar based on the duration of the last execution, and other information.\n\nPress ENTER is pressed and the current execution finishes.")
         .example(
             Example::new()
                 .text("Monitor the current directory for changes")
@@ -62,8 +62,13 @@ fn generate_man_page<P: AsRef<path::Path>>(outdir: P) -> Result<()> {
         )
         .example(
             Example::new()
+                .text("Try to connect to an ssh server until it succeeds")
+                .command("ogle -z ssh server true"),
+        )
+        .example(
+            Example::new()
                 .text("Poor man's top using ps")
-                .command("ogle --shell -- 'ps -eo %cpu,args --sort -%cpu | head'"),
+                .command("ogle -- /bin/bash -c 'ps -eo %cpu,args --sort -%cpu | head'"),
         )
         .render();
     File::create(man_path)?.write_all(manpage.as_bytes())?;
