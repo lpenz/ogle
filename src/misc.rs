@@ -17,3 +17,15 @@ macro_rules! ofmt {
         crate::misc::ofmt_helper($timestamp, &format!($($t)*))
     }};
 }
+
+pub fn ofmt_timeless_helper(line: &str) -> String {
+    format!("<O> {line}")
+}
+
+/// Print a message on stdout, without a timestamp, in the standard
+/// `ogle` format
+macro_rules! ofmt_timeless {
+    ($($t:tt)*) => {{
+        crate::misc::ofmt_timeless_helper(&format!($($t)*))
+    }};
+}

@@ -36,6 +36,7 @@ pub struct Pipe<SI: SysApi> {
     start: Instant, // can be start of running or sleep
     duration: Option<Duration>,
     printed_status: bool,
+    runs: u32,
     sleep_deadline: Option<Instant>,
 }
 
@@ -52,6 +53,7 @@ impl<SI: SysApi> Pipe<SI> {
             start: Instant::default(),
             duration: None,
             printed_status: false,
+            runs: 0,
             sleep_deadline: None,
         }
     }
@@ -134,12 +136,14 @@ impl<SI: SysApi> Stream for Pipe<SI> {
             Poll::Pending => Poll::Pending,
             Poll::Ready(Some(EItem { time: now, data })) => match data {
                 EData::StartRun => {
-                    this.println(ofmt!(&now, "start execution"));
-                    this.println(format!("+ {}", this.cmd));
+                    if *this.runs == 0 {
+                        this.println(ofmt!(&now, "start execution"));
+                    }
                     this.differ.reset();
                     *this.sleep_deadline = None;
                     *this.start = now;
                     this.status_update_running(now);
+                    this.process_line(format!("+ {}", this.cmd));
                     self.poll_next(cx)
                 }
                 EData::StartSleep(deadline) => {
@@ -157,10 +161,12 @@ impl<SI: SysApi> Stream for Pipe<SI> {
                     self.poll_next(cx)
                 }
                 EData::Done(sts) => {
-                    this.println(ofmt!(&now, "exited with {}", sts));
+                    let line = ofmt_timeless!("exited with {}", sts);
+                    this.process_line(line);
                     *this.duration = Some(&now - this.start);
                     // Sleeping starts now
                     *this.start = now;
+                    *this.runs += 1;
                     self.poll_next(cx)
                 }
                 EData::Err(e) => {
