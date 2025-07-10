@@ -24,8 +24,8 @@ use crate::sys::SysApi;
 use crate::time_wrapper::Duration;
 use crate::time_wrapper::Instant;
 
-#[pin_project(project = PipeProjection)]
-pub struct Pipe<SI: SysApi> {
+#[pin_project(project = ViewProjection)]
+pub struct View<SI: SysApi> {
     cmd: Cmd,
     refresh: Duration,
     sleep: Duration,
@@ -40,9 +40,9 @@ pub struct Pipe<SI: SysApi> {
     sleep_deadline: Option<Instant>,
 }
 
-impl<SI: SysApi> Pipe<SI> {
+impl<SI: SysApi> View<SI> {
     pub fn new(cmd: Cmd, refresh: Duration, sleep: Duration, input: Engine<SI>) -> Self {
-        Pipe {
+        View {
             cmd,
             refresh,
             sleep,
@@ -59,7 +59,7 @@ impl<SI: SysApi> Pipe<SI> {
     }
 }
 
-impl<SI: SysApi> PipeProjection<'_, SI> {
+impl<SI: SysApi> ViewProjection<'_, SI> {
     fn _println(&mut self, mut s: String) {
         s.push('\n');
         self.pending
@@ -123,7 +123,7 @@ impl<SI: SysApi> PipeProjection<'_, SI> {
     }
 }
 
-impl<SI: SysApi> Stream for Pipe<SI> {
+impl<SI: SysApi> Stream for View<SI> {
     type Item = OutputCommand;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
