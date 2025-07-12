@@ -26,27 +26,37 @@ use crate::time_wrapper::Instant;
 
 #[pin_project(project = ViewProjection)]
 pub struct View<SI: SysApi> {
+    // Configuration parameters:
     cmd: Cmd,
     refresh: Duration,
     sleep: Duration,
-    input: Engine<SI>,
+    /// The engine that streams the all events.
+    engine: Engine<SI>,
+    /// Some engine events generate more than one item; store them
+    /// here and yield them in the next calls.
     pending: VecDeque<OutputCommand>,
+    /// The differ that stores the lines so that we can compare runs.
     differ: Differ,
+    /// Spinner state
     spinner: char,
     start: Instant, // can be start of running or sleep
     duration: Option<Duration>,
+    /// If the status is currently visible and has to be cleared.
     printed_status: bool,
+    /// Number of runs so far.
     runs: u32,
+    /// Approximate time when we'll wake up with the next StartRun,
+    /// used for the countdown.
     sleep_deadline: Option<Instant>,
 }
 
 impl<SI: SysApi> View<SI> {
-    pub fn new(cmd: Cmd, refresh: Duration, sleep: Duration, input: Engine<SI>) -> Self {
+    pub fn new(cmd: Cmd, refresh: Duration, sleep: Duration, engine: Engine<SI>) -> Self {
         View {
             cmd,
             refresh,
             sleep,
-            input,
+            engine,
             pending: VecDeque::default(),
             differ: Differ::default(),
             spinner: '-',
@@ -131,7 +141,7 @@ impl<SI: SysApi> Stream for View<SI> {
         if let Some(output) = this.pending.pop_front() {
             return Poll::Ready(Some(output));
         }
-        let item = Pin::new(&mut this.input).poll_next(cx);
+        let item = Pin::new(&mut this.engine).poll_next(cx);
         match item {
             Poll::Pending => Poll::Pending,
             Poll::Ready(Some(EItem { time: now, data })) => match data {
@@ -143,7 +153,7 @@ impl<SI: SysApi> Stream for View<SI> {
                     *this.sleep_deadline = None;
                     *this.start = now;
                     this.status_update_running(now);
-                    this.process_line(format!("+ {}", this.cmd));
+                    this.process_line(ofmt_timeless!("+ {}", this.cmd));
                     self.poll_next(cx)
                 }
                 EData::StartSleep(deadline) => {
