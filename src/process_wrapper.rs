@@ -26,6 +26,7 @@ use std::pin::Pin;
 use std::process::ExitStatus;
 use std::process::Stdio;
 use std::task::{Context, Poll};
+use tokio::process::Child;
 use tokio::process::Command;
 use tokio_process_stream as tps;
 use tokio_stream::Stream;
@@ -145,6 +146,17 @@ pub enum ProcessStream {
     /// Mock for a running process stream that just returns items from
     /// a list. Useful for testing.
     Virtual { items: VecDeque<Item> },
+}
+
+impl ProcessStream {
+    /// Return a mutable reference to the child object
+    pub fn child_mut(&mut self) -> Option<&mut Child> {
+        if let ProcessStream::Real { stream } = self {
+            stream.child_mut()
+        } else {
+            None
+        }
+    }
 }
 
 impl std::fmt::Debug for ProcessStream {
