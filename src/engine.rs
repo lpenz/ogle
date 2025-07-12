@@ -158,10 +158,11 @@ impl<SI: SysApi> Stream for Engine<SI> {
         let now = this.sys.now();
         if let Some(user) = this.user {
             match Pin::new(user).poll_next(cx) {
-                Poll::Ready(Some(_)) => {
+                Poll::Ready(Some(s)) if s == "q" => {
                     *this.exit_by_user = true;
                     *this.user = None;
                 }
+                Poll::Ready(Some(_)) => {}
                 Poll::Ready(None) => {
                     *this.user = None;
                 }

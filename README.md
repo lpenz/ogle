@@ -21,6 +21,9 @@ corresponds to the duration of the previous execution. The sleep time
 is also shown, as a countdown. If the command returns an error to the
 shell, the error value is displayed.
 
+ogle also supports limited interactive control with one-character
+commands followed by ENTER:
+- `q`: quit after when the process is no longer running.
 
 ## Installation
 
