@@ -23,7 +23,8 @@ shell, the error value is displayed.
 
 ogle also supports limited interactive control with one-character
 commands followed by ENTER:
-- `q`: quit after when the process is no longer running.
+- `q`: gracefully quit after when the process is no longer running.
+- `k`: force-quit; kill the process if it's running.
 
 ## Installation
 
