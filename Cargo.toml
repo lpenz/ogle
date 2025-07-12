@@ -37,6 +37,9 @@ man = "0.3.0"
 [dev-dependencies]
 color-eyre = "0.6.5"
 
+[package.metadata.docs.rs]
+rustdoc-args = ["--document-private-items"]
+
 [package.metadata.deb]
 section = "utils"
 extended-description = """\
