@@ -105,7 +105,7 @@ mod view;
 mod output;
 
 /// Ogle main function, the single pub function in this lib.
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 pub async fn main() -> Result<(), Box<dyn Error>> {
     color_eyre::install()?;
     tracing_subscriber::fmt()
