@@ -29,3 +29,41 @@ macro_rules! ofmt_timeless {
         crate::misc::ofmt_timeless_helper(&format!($($t)*))
     }};
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::time_wrapper::Instant;
+    use color_eyre::Result;
+
+    #[test]
+    fn test_ofmt_helper() -> Result<()> {
+        let timestamp = Instant::default();
+        assert_eq!(
+            ofmt_helper(&timestamp, "test line"),
+            format!("<O> {} test line", timestamp)
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_ofmt_macro() -> Result<()> {
+        let timestamp = Instant::default();
+        let formatted = ofmt!(&timestamp, "hello {}", 123);
+        assert_eq!(formatted, format!("<O> {} hello 123", timestamp));
+        Ok(())
+    }
+
+    #[test]
+    fn test_ofmt_timeless_helper() -> Result<()> {
+        assert_eq!(ofmt_timeless_helper("timeless test"), "<O> timeless test");
+        Ok(())
+    }
+
+    #[test]
+    fn test_ofmt_timeless_macro() -> Result<()> {
+        let formatted = ofmt_timeless!("value: {}", 42.5);
+        assert_eq!(formatted, "<O> value: 42.5");
+        Ok(())
+    }
+}

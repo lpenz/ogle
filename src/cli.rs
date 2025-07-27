@@ -45,7 +45,7 @@ mod tests {
     #[test]
     fn empty() {
         let cli = Cli::try_parse_from(vec!["ogle"]);
-        assert!(cli.is_err());
+        assert!(cli.is_err(), "should require at least a command to run");
     }
 
     #[test]
