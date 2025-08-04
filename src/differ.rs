@@ -26,7 +26,7 @@ impl Differ {
             self.lines.push_back(line);
         } else {
             // Otherwise, we check
-            if self.iline >= self.lines.len() || self.lines[self.iline] != line {
+            if self.iline >= self.lines.len() || self.lines.get(self.iline) != Some(&line) {
                 // New or different line.
                 self.changed = true;
                 self.lines.truncate(self.iline);
