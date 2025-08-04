@@ -16,7 +16,14 @@ use crate::view::View;
 pub async fn run<SI: SysApi>(cli: Cli, sys: SI) -> Result<()> {
     let refresh = Duration::milliseconds(250);
     let sleep = Duration::seconds(cli.period.into());
-    let input = Engine::new(sys.clone(), cli.get_cmd(), refresh, sleep)?;
-    let view = View::new(cli.get_cmd(), refresh, sleep, input);
+    let engine = Engine::new(
+        sys.clone(),
+        cli.get_cmd(),
+        refresh,
+        sleep,
+        cli.until_success,
+        cli.until_failure,
+    )?;
+    let view = View::new(cli.get_cmd(), refresh, sleep, engine);
     output(view).await
 }

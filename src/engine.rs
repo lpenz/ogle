@@ -119,15 +119,22 @@ pub struct Engine<SI: SysApi> {
 }
 
 impl<SI: SysApi> Engine<SI> {
-    pub fn new(mut sys: SI, cmd: Cmd, refresh: Duration, sleep: Duration) -> Result<Self> {
+    pub fn new(
+        mut sys: SI,
+        cmd: Cmd,
+        refresh: Duration,
+        sleep: Duration,
+        exit_on_success: bool,
+        exit_on_failure: bool,
+    ) -> Result<Self> {
         let user_stream = sys.user_stream();
         Ok(Self {
             sys,
             cmd,
             refresh,
             sleep,
-            exit_on_success: false,
-            exit_on_failure: false,
+            exit_on_success,
+            exit_on_failure,
             state: State::Start,
             user: user_stream,
             exit_by_user: false,
