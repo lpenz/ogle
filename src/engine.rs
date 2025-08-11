@@ -150,7 +150,7 @@ impl<SI: SysApi> Engine<SI> {
 
     fn sleep(&mut self, now: Instant) -> EItem {
         let deadline = &now + &self.sleep;
-        let ticker = IntervalStream::new(Duration::seconds(1).into());
+        let ticker = IntervalStream::new(self.refresh.into());
         self.state = State::Sleeping { deadline, ticker };
         EItem::new(now, EData::StartSleep(deadline))
     }

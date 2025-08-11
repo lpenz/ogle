@@ -124,11 +124,13 @@ impl<SI: SysApi> ViewProjection<'_, SI> {
 
     fn status_update_sleeping(&mut self, now: Instant, deadline: Instant) {
         self.status_maybe_clear();
+        let mut spinner = *self.spinner;
         self._println(ofmt!(
             self.start,
             "{}",
-            progbar_sleeping(self.sleep, &now, &deadline)
+            progbar_sleeping(self.sleep, &now, &deadline, spinner_get(&mut spinner))
         ));
+        *self.spinner = spinner;
         *self.printed_status = true;
     }
 }

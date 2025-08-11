@@ -8,12 +8,18 @@ use color_eyre::Result;
 
 // Basic functions:
 
-pub fn progbar_sleeping(sleep: &Duration, now: &Instant, deadline: &Instant) -> String {
+pub fn progbar_sleeping(
+    sleep: &Duration,
+    now: &Instant,
+    deadline: &Instant,
+    spinner: char,
+) -> String {
     if sleep.num_seconds() > 1 {
         let left = deadline - now;
-        format!("sleeping for {}s", left.num_seconds() + 1,)
+        let left = left.num_seconds() + 1;
+        format!("sleeping for {left}s [{spinner}]")
     } else {
-        "sleeping".to_owned()
+        format!("sleeping [{spinner}]")
     }
 }
 
