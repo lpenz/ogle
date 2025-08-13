@@ -22,6 +22,7 @@ static TERM: LazyLock<Mutex<Term>> = LazyLock::new(|| Mutex::new(Term::stdout())
 /// Returns the width of the terminal
 ///
 /// Uses [`console::Term::size_checked`]
+#[allow(dead_code)]
 pub fn get_width() -> Option<u16> {
     TERM.lock()
         .expect("unable to lock TERM")

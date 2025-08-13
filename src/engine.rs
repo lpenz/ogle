@@ -170,10 +170,10 @@ impl<SI: SysApi> Stream for Engine<SI> {
                     *this.user = None;
                 }
                 Poll::Ready(Some(s)) if s == "k" => {
-                    if let State::Running { process, ticker: _ } = this.state {
-                        if let Some(child) = process.child_mut() {
-                            let _ = child.start_kill();
-                        }
+                    if let State::Running { process, ticker: _ } = this.state
+                        && let Some(child) = process.child_mut()
+                    {
+                        let _ = child.start_kill();
                     }
                     *this.exit_by_user = true;
                     *this.user = None;
