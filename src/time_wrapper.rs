@@ -117,7 +117,7 @@ impl Default for Duration {
 
 impl From<Duration> for std::time::Duration {
     fn from(duration: Duration) -> Self {
-        duration.0.to_std().unwrap()
+        duration.0.to_std().unwrap_or_default()
     }
 }
 
