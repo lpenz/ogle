@@ -16,27 +16,30 @@ use crate::term_wrapper::*;
 
 #[enum_dispatch(OutputCommand)]
 pub trait OutputCommandTrait {
-    fn execute(&self);
+    fn execute(&self) -> Result<()>;
 }
 
 pub struct MoveCursorUp(pub usize);
 impl OutputCommandTrait for MoveCursorUp {
-    fn execute(&self) {
-        move_cursor_up(self.0).unwrap()
+    fn execute(&self) -> Result<()> {
+        move_cursor_up(self.0)?;
+        Ok(())
     }
 }
 
 pub struct ClearLine {}
 impl OutputCommandTrait for ClearLine {
-    fn execute(&self) {
-        clear_line().unwrap()
+    fn execute(&self) -> Result<()> {
+        clear_line()?;
+        Ok(())
     }
 }
 
 pub struct WriteAll(pub Vec<u8>);
 impl OutputCommandTrait for WriteAll {
-    fn execute(&self) {
-        write_all(&self.0).unwrap()
+    fn execute(&self) -> Result<()> {
+        write_all(&self.0)?;
+        Ok(())
     }
 }
 
@@ -55,7 +58,7 @@ where
     S: Stream<Item = OutputCommand> + std::marker::Unpin,
 {
     while let Some(cmd) = stream.next().await {
-        cmd.execute();
+        cmd.execute()?;
     }
     Ok(())
 }
