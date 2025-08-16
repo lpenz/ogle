@@ -17,7 +17,8 @@ jobs:
       publish_cratesio: true
       publish_github_release: true
       publish_github_release_files: |
-        target/release/ogle target/release/ogle.1
+        target/release/ogle
+        target/release/ogle.1
       publish_packagecloud_repository_deb: |
         ["debian/debian/trixie",
          "ubuntu/ubuntu/noble"]
