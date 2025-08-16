@@ -8,7 +8,7 @@ jobs:
   omnilint:
     uses: lpenz/omnilint/.github/workflows/omnilint.yml@v0.5.2
   rust:
-    uses: lpenz/ghworkflow-rust/.github/workflows/rust.yml@v0.26.0
+    uses: lpenz/ghworkflow-rust/.github/workflows/rust.yml@v0.26.3
     with:
       coveralls: true
       deb: true
@@ -19,7 +19,7 @@ jobs:
       publish_github_release_files: |
         target/release/ogle target/release/ogle.1
       publish_packagecloud_repository_deb: |
-        ["debian/debian/bookworm",
+        ["debian/debian/trixie",
          "ubuntu/ubuntu/noble"]
       publish_packagecloud_repository_rpm: |
         ["rpm/rpm_any/rpm_any"]
