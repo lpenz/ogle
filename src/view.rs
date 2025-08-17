@@ -24,6 +24,16 @@ use crate::sys::SysApi;
 use crate::time_wrapper::Duration;
 use crate::time_wrapper::Instant;
 
+#[derive(Debug, Clone, Copy)]
+pub enum State {
+    Running,
+    Sleeping {
+        /// Approximate time when we'll wake up with the next StartRun,
+        /// used for the countdown.
+        deadline: Instant,
+    },
+}
+
 #[pin_project(project = ViewProjection)]
 pub struct View<SI: SysApi> {
     // Configuration parameters:
@@ -45,9 +55,8 @@ pub struct View<SI: SysApi> {
     printed_status: bool,
     /// Number of runs so far.
     runs: u32,
-    /// Approximate time when we'll wake up with the next StartRun,
-    /// used for the countdown.
-    sleep_deadline: Option<Instant>,
+    /// Current state
+    state: State,
 }
 
 impl<SI: SysApi> View<SI> {
@@ -64,7 +73,9 @@ impl<SI: SysApi> View<SI> {
             duration: None,
             printed_status: false,
             runs: 0,
-            sleep_deadline: None,
+            state: State::Sleeping {
+                deadline: Default::default(),
+            },
         }
     }
 }
@@ -144,57 +155,78 @@ impl<SI: SysApi> Stream for View<SI> {
             return Poll::Ready(Some(output));
         }
         let item = Pin::new(&mut this.engine).poll_next(cx);
-        match item {
-            Poll::Pending => Poll::Pending,
-            Poll::Ready(Some(EItem { time: now, data })) => match data {
-                EData::StartRun => {
-                    if *this.runs == 0 {
-                        this.println(ofmt!(&now, "start execution"));
-                    }
-                    this.differ.reset();
-                    *this.sleep_deadline = None;
-                    *this.start = now;
-                    this.status_update_running(now);
-                    this.process_line(ofmt_timeless!("+ {}", this.cmd));
-                    self.poll_next(cx)
+        match this.state {
+            State::Running => {
+                match item {
+                    Poll::Pending => Poll::Pending,
+                    Poll::Ready(None) => Poll::Ready(None),
+                    Poll::Ready(Some(EItem { time: now, data })) => match data {
+                        EData::StartSleep(deadline) => {
+                            *this.state = State::Sleeping { deadline };
+                            self.poll_next(cx)
+                        }
+                        EData::LineOut(line) => {
+                            this.process_line(line);
+                            this.status_update_running(now);
+                            self.poll_next(cx)
+                        }
+                        EData::LineErr(line) => {
+                            this.process_line(line);
+                            this.status_update_running(now);
+                            self.poll_next(cx)
+                        }
+                        EData::Done(sts) => {
+                            let line = ofmt_timeless!("exited with {}", sts);
+                            this.process_line(line);
+                            *this.duration = Some(&now - this.start);
+                            // Sleeping starts now
+                            *this.start = now;
+                            *this.runs += 1;
+                            self.poll_next(cx)
+                        }
+                        EData::Err(e) => {
+                            this.println(ofmt!(&now, "err {:?}", e));
+                            self.poll_next(cx)
+                        }
+                        EData::Tick => {
+                            this.status_update_running(now);
+                            self.poll_next(cx)
+                        }
+                        _ => {
+                            panic!("unexpected data while running: {:?}", data);
+                        }
+                    },
                 }
-                EData::StartSleep(deadline) => {
-                    self.sleep_deadline = Some(deadline);
-                    self.poll_next(cx)
-                }
-                EData::LineOut(line) => {
-                    this.process_line(line);
-                    this.status_update_running(now);
-                    self.poll_next(cx)
-                }
-                EData::LineErr(line) => {
-                    this.process_line(line);
-                    this.status_update_running(now);
-                    self.poll_next(cx)
-                }
-                EData::Done(sts) => {
-                    let line = ofmt_timeless!("exited with {}", sts);
-                    this.process_line(line);
-                    *this.duration = Some(&now - this.start);
-                    // Sleeping starts now
-                    *this.start = now;
-                    *this.runs += 1;
-                    self.poll_next(cx)
-                }
-                EData::Err(e) => {
-                    this.println(ofmt!(&now, "err {:?}", e));
-                    self.poll_next(cx)
-                }
-                EData::Tick => {
-                    if let Some(deadline) = *this.sleep_deadline {
-                        this.status_update_sleeping(now, deadline);
-                    } else {
+            }
+            State::Sleeping { deadline } => match item {
+                Poll::Pending => Poll::Pending,
+                Poll::Ready(None) => Poll::Ready(None),
+                Poll::Ready(Some(EItem { time: now, data })) => match data {
+                    EData::StartRun => {
+                        if *this.runs == 0 {
+                            this.println(ofmt!(&now, "start execution"));
+                        }
+                        this.differ.reset();
+                        *this.start = now;
                         this.status_update_running(now);
+                        this.process_line(ofmt_timeless!("+ {}", this.cmd));
+                        *this.state = State::Running;
+                        self.poll_next(cx)
                     }
-                    self.poll_next(cx)
-                }
+                    EData::Err(e) => {
+                        this.println(ofmt!(&now, "err {:?}", e));
+                        self.poll_next(cx)
+                    }
+                    EData::Tick => {
+                        let deadline = *deadline;
+                        this.status_update_sleeping(now, deadline);
+                        self.poll_next(cx)
+                    }
+                    _ => {
+                        panic!("unexpected data while sleeping: {:?}", data);
+                    }
+                },
             },
-            Poll::Ready(None) => Poll::Ready(None),
         }
     }
 }
