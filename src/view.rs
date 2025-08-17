@@ -53,8 +53,10 @@ pub struct View<SI: SysApi> {
     duration: Option<Duration>,
     /// If the status is currently visible and has to be cleared.
     printed_status: bool,
-    /// Number of runs so far.
-    runs: u32,
+    /// Total number of runs.
+    total_runs: u32,
+    /// Current number of unchanged runs.
+    unchanged_runs: u32,
     /// Current state
     state: State,
 }
@@ -72,7 +74,8 @@ impl<SI: SysApi> View<SI> {
             start: Instant::default(),
             duration: None,
             printed_status: false,
-            runs: 0,
+            total_runs: 0,
+            unchanged_runs: 0,
             state: State::Sleeping {
                 deadline: Default::default(),
             },
@@ -121,6 +124,7 @@ impl<SI: SysApi> ViewProjection<'_, SI> {
             "{}",
             progbar_running(
                 150,                       // width: usize,
+                *self.unchanged_runs,      // runs: u32,
                 &now,                      // now: &Instant,
                 self.start,                // start: &Instant,
                 *self.duration,            // duration: Option<&Duration>,
@@ -139,7 +143,13 @@ impl<SI: SysApi> ViewProjection<'_, SI> {
         self._println(ofmt!(
             self.start,
             "{}",
-            progbar_sleeping(self.sleep, &now, &deadline, spinner_get(&mut spinner))
+            progbar_sleeping(
+                *self.unchanged_runs,
+                self.sleep,
+                &now,
+                &deadline,
+                spinner_get(&mut spinner)
+            )
         ));
         *self.spinner = spinner;
         *self.printed_status = true;
@@ -181,7 +191,12 @@ impl<SI: SysApi> Stream for View<SI> {
                             *this.duration = Some(&now - this.start);
                             // Sleeping starts now
                             *this.start = now;
-                            *this.runs += 1;
+                            *this.total_runs += 1;
+                            if !this.differ.has_changed() {
+                                *this.unchanged_runs += 1;
+                            } else {
+                                *this.unchanged_runs = 0;
+                            }
                             self.poll_next(cx)
                         }
                         EData::Err(e) => {
@@ -203,7 +218,7 @@ impl<SI: SysApi> Stream for View<SI> {
                 Poll::Ready(None) => Poll::Ready(None),
                 Poll::Ready(Some(EItem { time: now, data })) => match data {
                     EData::StartRun => {
-                        if *this.runs == 0 {
+                        if *this.total_runs == 0 {
                             this.println(ofmt!(&now, "start execution"));
                         }
                         this.differ.reset();

@@ -8,23 +8,34 @@ use color_eyre::Result;
 
 // Basic functions:
 
+fn get_prefix(unchanged_runs: u32) -> String {
+    if unchanged_runs == 0 {
+        "".to_string()
+    } else {
+        format!("unchanged {unchanged_runs}, ")
+    }
+}
+
 pub fn progbar_sleeping(
+    unchanged_runs: u32,
     sleep: &Duration,
     now: &Instant,
     deadline: &Instant,
     spinner: char,
 ) -> String {
+    let prefix = get_prefix(unchanged_runs);
     if sleep.num_seconds() > 1 {
         let left = deadline - now;
         let left = left.num_seconds() + 1;
-        format!("sleeping for {left}s [{spinner}]")
+        format!("{prefix}sleeping for {left}s [{spinner}]")
     } else {
-        format!("sleeping [{spinner}]")
+        format!("{prefix}sleeping [{spinner}]")
     }
 }
 
 pub fn progbar_running(
     width: usize,
+    unchanged_runs: u32,
     now: &Instant,
     start: &Instant,
     duration: Option<Duration>,
@@ -33,10 +44,11 @@ pub fn progbar_running(
 ) -> Result<String> {
     let duration = duration.unwrap_or_default();
     let duration_millis = duration.num_milliseconds();
+    let prefix = get_prefix(unchanged_runs);
     if duration_millis == 0 || refresh.num_milliseconds() == 0 {
-        return Ok(format!("running [{spinner}]"));
+        return Ok(format!("{prefix}running [{spinner}]"));
     }
-    let head = "running [".to_string();
+    let head = format!("{prefix}running [");
     let tail = format!("] [{spinner}]");
     let barsize = {
         let b = usize::try_from(duration_millis / refresh.num_milliseconds())?;
@@ -52,7 +64,7 @@ pub fn progbar_running(
         }
     };
     Ok(if barsize <= 1 {
-        format!("running [{spinner}]")
+        format!("{prefix}running [{spinner}]")
     } else {
         let elapsed = now - start;
         let ratio = elapsed.num_milliseconds() as f32 / duration_millis as f32;
