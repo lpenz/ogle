@@ -740,6 +740,7 @@ dependencies = [
  "signal-hook-registry",
  "slab",
  "tokio-macros",
+ "tracing",
  "windows-sys 0.59.0",
 ]
 
