@@ -5,5 +5,7 @@
 use std::error::Error;
 
 fn main() -> Result<(), Box<dyn Error>> {
+    #[cfg(feature = "console")]
+    console_subscriber::init();
     ogle::main()
 }
