@@ -106,7 +106,7 @@ mod output;
 #[tokio::main(flavor = "current_thread")]
 pub async fn main() -> Result<(), Box<dyn Error>> {
     color_eyre::install()?;
-    #[cfg(not(feature = "console"))]
+    #[cfg(not(feature = "console-subscriber"))]
     tracing_subscriber::fmt()
         .with_span_events(tracing_subscriber::fmt::format::FmtSpan::ACTIVE)
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
