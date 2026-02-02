@@ -1,7 +1,7 @@
 [package]
 name = "ogle"
 description = "Execute a command periodically, showing the output only when it changes"
-version = "2.3.0"
+version = "2.3.1"
 authors = ["Leandro Lisboa Penz <lpenz@lpenz.org>"]
 edition = "2024"
 license = "MIT"
