@@ -7,8 +7,11 @@
 //! For now we just check if the user has typed ENTER, which makes
 //! ogle exit after the current run is over.
 
-use crossterm::event::{self, Event};
 use crossterm::tty::IsTty;
+use crossterm::{
+    event::{self, Event},
+    terminal::{disable_raw_mode, enable_raw_mode},
+};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use tokio::io;
@@ -35,6 +38,7 @@ impl UserStream {
         let stdin = io::stdin();
         if stdin.is_tty() {
             let (tx, rx) = mpsc::unbounded_channel::<String>();
+            let _ = enable_raw_mode();
             tokio::spawn(async move {
                 loop {
                     let key_event = matches!(event::poll(Duration::from_secs(0)), Ok(true))
@@ -65,6 +69,14 @@ impl UserStream {
 
     pub fn new_virtual() -> UserStream {
         UserStream::Virtual
+    }
+}
+
+impl Drop for UserStream {
+    fn drop(&mut self) {
+        if matches!(self, UserStream::Real(_)) {
+            let _ = disable_raw_mode();
+        }
     }
 }
 

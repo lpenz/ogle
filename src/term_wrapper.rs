@@ -7,7 +7,7 @@
 //! This wraps [`crossterm`] at the moment.
 
 use crossterm::{
-    cursor::MoveUp,
+    cursor::{MoveToColumn, MoveUp},
     execute,
     terminal::{Clear, ClearType, size},
 };
@@ -35,7 +35,8 @@ pub fn move_cursor_up(n: u16) -> Result<()> {
 ///
 /// Wraps [`crossterm::terminal::Clear`]
 pub fn clear_line() -> Result<()> {
-    execute!(stdout(), Clear(ClearType::CurrentLine))
+    execute!(stdout(), Clear(ClearType::CurrentLine))?;
+    execute!(stdout(), MoveToColumn(0))
 }
 
 /// Attempts to write an entire buffer to the terminal.
@@ -45,5 +46,6 @@ pub fn clear_line() -> Result<()> {
 pub fn write_all(buf: &[u8]) -> Result<()> {
     stdout().write_all(buf)?;
     stdout().flush()?;
+    execute!(stdout(), MoveToColumn(0))?;
     Ok(())
 }
