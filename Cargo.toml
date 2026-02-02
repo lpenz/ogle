@@ -1,7 +1,7 @@
 [package]
 name = "ogle"
 description = "Execute a command periodically, showing the output only when it changes"
-version = "2.2.1"
+version = "2.3.0"
 authors = ["Leandro Lisboa Penz <lpenz@lpenz.org>"]
 edition = "2024"
 license = "MIT"
@@ -13,14 +13,14 @@ categories = ["command-line-utilities"]
 keywords = ["watch", "command-line"]
 
 [dependencies]
-clap = { version = "4.5.46", features = ["derive"] }
+clap = { version = "4.5.56", features = ["derive"] }
 color-eyre = "0.6.5"
-tokio = { version = "1.47.1", features = ["macros", "rt-multi-thread", "io-std", "tracing"] }
-tokio-stream = { version = "0.1.17", features = ["io-util"] }
-console = "0.16.0"
+tokio = { version = "1.49.0", features = ["macros", "rt-multi-thread", "io-std", "tracing"] }
+tokio-stream = { version = "0.1.18", features = ["io-util"] }
+console = "0.16.2"
 tokio-process-stream = "0.4.1"
-tracing = { version = "0.1.41", features = ["log"] }
-tracing-subscriber = { version = "0.3.20", features = ["env-filter", "tracing-log", "fmt"] }
+tracing = { version = "0.1.44", features = ["log"] }
+tracing-subscriber = { version = "0.3.22", features = ["env-filter", "tracing-log", "fmt"] }
 enum_dispatch = "0.3.13"
 pin-project = "1.1.10"
 crossterm = "0.29.0"
@@ -31,7 +31,7 @@ default = []
 console = ["console-subscriber"]
 
 [dependencies.chrono]
-version = "0.4.41"
+version = "0.4.43"
 default-features = false
 features = ["clock"]
 
