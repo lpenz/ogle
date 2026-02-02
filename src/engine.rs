@@ -21,6 +21,7 @@ use crate::process_wrapper::ProcessStream;
 use crate::sys::SysApi;
 use crate::time_wrapper::Duration;
 use crate::time_wrapper::Instant;
+use crate::user_wrapper::UserEvent;
 use crate::user_wrapper::UserStream;
 
 // EData, EItem //////////////////////////////////////////////////////
@@ -165,10 +166,10 @@ impl<SI: SysApi> Stream for Engine<SI> {
         let now = this.sys.now();
         if let Some(user) = this.user {
             match Pin::new(user).poll_next(cx) {
-                Poll::Ready(Some(s)) if s == "q" => {
+                Poll::Ready(Some(UserEvent::Quit)) => {
                     *this.exit_by_user = true;
                 }
-                Poll::Ready(Some(s)) if s == "k" => {
+                Poll::Ready(Some(UserEvent::Kill)) => {
                     if let State::Running { process, ticker: _ } = this.state
                         && let Some(child) = process.child_mut()
                     {
@@ -176,7 +177,6 @@ impl<SI: SysApi> Stream for Engine<SI> {
                     }
                     *this.exit_by_user = true;
                 }
-                Poll::Ready(Some(_)) => {}
                 Poll::Ready(None) => {
                     *this.user = None;
                 }
