@@ -9,12 +9,10 @@
 
 use crossterm::event::{self, Event};
 use crossterm::tty::IsTty;
-use pin_project::pin_project;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use tokio::io;
 use tokio::sync::mpsc;
-use tokio::task::JoinHandle;
 use tokio::time::{Duration, sleep};
 use tokio_stream::Stream;
 use tracing::instrument;
@@ -23,11 +21,10 @@ use tracing::instrument;
 /// keypress in a tokio stream.
 ///
 /// Also provides a virtual implementation for use in tests.
-#[pin_project(project = UserStreamProj)]
 #[derive(Debug, Default)]
 pub enum UserStream {
     /// A real implementation that reads a line from stdin.
-    Real(mpsc::UnboundedReceiver<String>, JoinHandle<()>),
+    Real(mpsc::UnboundedReceiver<String>),
     /// A virtual implementation that doesn't do anything.
     #[default]
     Virtual,
@@ -38,11 +35,18 @@ impl UserStream {
         let stdin = io::stdin();
         if stdin.is_tty() {
             let (tx, rx) = mpsc::unbounded_channel::<String>();
-            let handle = tokio::spawn(async move {
+            tokio::spawn(async move {
                 loop {
-                    if matches!(event::poll(Duration::from_secs(0)), Ok(true))
-                        && let Ok(Event::Key(key_event)) = event::read()
-                    {
+                    let key_event = matches!(event::poll(Duration::from_secs(0)), Ok(true))
+                        .then(|| match event::read() {
+                            Ok(Event::Key(key_event)) => Some(key_event),
+                            Ok(_) => None,
+                            Err(e) => {
+                                panic!("could not read key after poll returned true: {}", e)
+                            }
+                        })
+                        .flatten();
+                    if let Some(key_event) = key_event {
                         // If sending the key fails, it's probably because we
                         // are in the process of being dropped, so we can
                         // ignore it:
@@ -53,7 +57,7 @@ impl UserStream {
                     }
                 }
             });
-            Some(UserStream::Real(rx, handle))
+            Some(UserStream::Real(rx))
         } else {
             None
         }
@@ -69,9 +73,9 @@ impl Stream for UserStream {
 
     #[instrument(level = "debug", ret, skip(cx))]
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let this = self.project();
+        let this = self.get_mut();
         match this {
-            UserStreamProj::Real(rx, _) => {
+            UserStream::Real(rx) => {
                 let next = Pin::new(rx).poll_recv(cx);
                 match next {
                     Poll::Ready(Some(s)) => Poll::Ready(Some(s)),
@@ -79,7 +83,7 @@ impl Stream for UserStream {
                     Poll::Pending => Poll::Pending,
                 }
             }
-            UserStreamProj::Virtual {} => Poll::Ready(None),
+            UserStream::Virtual => Poll::Ready(None),
         }
     }
 }
