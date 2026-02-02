@@ -11,22 +11,23 @@ use color_eyre::Report;
 use color_eyre::eyre::eyre;
 use crossterm::tty::IsTty;
 use crossterm::{
-    event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
+    event::{Event, EventStream, KeyCode, KeyEvent, KeyModifiers},
     terminal::{disable_raw_mode, enable_raw_mode},
 };
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use tokio::io;
-use tokio::sync::mpsc;
-use tokio::time::{Duration, sleep};
 use tokio_stream::Stream;
 use tracing::info;
 use tracing::instrument;
 
+/// An event coming from the user
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UserEvent {
-    Kill,
+    /// Let the current execution finish and exit instead of sleeping.
     Quit,
+    /// Kill the underlying program immediately and exit.
+    Kill,
 }
 
 impl TryFrom<KeyEvent> for UserEvent {
@@ -46,14 +47,24 @@ impl TryFrom<KeyEvent> for UserEvent {
     }
 }
 
+impl TryFrom<&Event> for UserEvent {
+    type Error = Report;
+    fn try_from(event: &Event) -> Result<Self, Self::Error> {
+        match event {
+            Event::Key(ke) => UserEvent::try_from(*ke),
+            event => Err(eyre!("unrecognized event {:?}", event)),
+        }
+    }
+}
+
 /// A wrapper for `crossterm` that polls the keyboard and provides the
 /// keypress in a tokio stream.
 ///
 /// Also provides a virtual implementation for use in tests.
 #[derive(Debug, Default)]
 pub enum UserStream {
-    /// A real implementation that reads a line from stdin.
-    Real(mpsc::UnboundedReceiver<UserEvent>),
+    /// A real implementation that gets KeyEvents from an EventStream
+    Real(EventStream),
     /// A virtual implementation that doesn't do anything.
     #[default]
     Virtual,
@@ -63,42 +74,8 @@ impl UserStream {
     pub fn new_real() -> Option<UserStream> {
         let stdin = io::stdin();
         if stdin.is_tty() {
-            let (tx, rx) = mpsc::unbounded_channel::<UserEvent>();
             let _ = enable_raw_mode();
-            tokio::spawn(async move {
-                loop {
-                    let key_event = matches!(event::poll(Duration::from_secs(0)), Ok(true))
-                        .then(|| match event::read() {
-                            Ok(Event::Key(key_event)) => Some(key_event),
-                            Ok(_) => None,
-                            Err(e) => {
-                                panic!("could not read key after poll returned true: {}", e)
-                            }
-                        })
-                        .flatten();
-                    if let Some(key_event) = key_event {
-                        // If sending the key fails, it's probably because we
-                        // are in the process of being dropped, so we can
-                        // ignore it:
-                        match UserEvent::try_from(key_event) {
-                            Ok(user_event) => {
-                                let _ = tx.send(user_event);
-                            }
-                            Err(e) => {
-                                info!(
-                                    key_event = ?key_event,
-                                    error=%e,
-                                    "error converting KeyEvent into UserEvent"
-                                );
-                            }
-                        }
-                    } else {
-                        // We tokio-sleep here to provide a cancellation point:
-                        sleep(Duration::from_millis(127)).await;
-                    }
-                }
-            });
-            Some(UserStream::Real(rx))
+            Some(UserStream::Real(EventStream::new()))
         } else {
             None
         }
@@ -124,10 +101,27 @@ impl Stream for UserStream {
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = self.get_mut();
         match this {
-            UserStream::Real(rx) => {
-                let next = Pin::new(rx).poll_recv(cx);
+            UserStream::Real(event_stream) => {
+                let next = Pin::new(event_stream).poll_next(cx);
                 match next {
-                    Poll::Ready(Some(ue)) => Poll::Ready(Some(ue)),
+                    Poll::Ready(Some(Ok(event))) => match UserEvent::try_from(&event) {
+                        Ok(user_event) => Poll::Ready(Some(user_event)),
+                        Err(e) => {
+                            info!(
+                                event = ?event,
+                                error=%e,
+                                "error converting Event into UserEvent"
+                            );
+                            Poll::Pending
+                        }
+                    },
+                    Poll::Ready(Some(Err(error))) => {
+                        info!(
+                            error = %error,
+                            "EventStream yielded an error"
+                        );
+                        Poll::Pending
+                    }
                     Poll::Ready(None) => Poll::Ready(None),
                     Poll::Pending => Poll::Pending,
                 }
