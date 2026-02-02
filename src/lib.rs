@@ -55,9 +55,7 @@
 //!     provides an [`Item`](process_wrapper::Item) that implements
 //!     `Eq` so that we can use it in tests.
 //!   - [`term_wrapper`]: implements terminal functions, mostly for
-//!     output. As we are currently wrapping [`console`] and its
-//!     functions require a [`console::Term`] object, we end up using
-//!     a mutex here to abstract the singleton.
+//!     output. As we are currently wrapping [`crossterm`].
 //!   - [`user_wrapper`]: abstract user interaction. At the moment, we
 //!     just monitor `stdin` in line mode, and ogle exits gracefully
 //!     when that's detected.

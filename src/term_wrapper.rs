@@ -4,51 +4,46 @@
 
 //! Wrapper for low-level terminal manipulation.
 //!
-//! This wraps [`console::Term`] at the moment, and provides singleton
-//! functions that do not require an object. We do that by wrapping
-//! the Term object in a [`std::sync::Mutex`].
-//!
-//! A side-effect of this style of interface is that we can change the
-//! underlying library with (hopefully) no impact on users.
+//! This wraps [`crossterm`] at the moment.
 
-use console::Term;
+use crossterm::{
+    cursor::MoveUp,
+    execute,
+    terminal::{Clear, ClearType, size},
+};
 use std::io::Result;
-use std::io::Write;
-use std::sync::LazyLock;
-use std::sync::Mutex;
-
-static TERM: LazyLock<Mutex<Term>> = LazyLock::new(|| Mutex::new(Term::stdout()));
+use std::io::{Write, stdout};
 
 /// Returns the width of the terminal
 ///
-/// Uses [`console::Term::size_checked`]
+/// Uses [`crossterm::terminal::size`]
 #[allow(dead_code)]
 pub fn get_width() -> Option<u16> {
-    TERM.lock()
-        .expect("unable to lock TERM")
-        .size_checked()
-        .map(|(_, width)| width)
+    size().ok().map(|(w, _)| w)
 }
 
 /// Move the cursor up by `n` lines, if possible.
 ///
-/// Wraps [`console::Term::move_cursor_up`]
-pub fn move_cursor_up(n: usize) -> Result<()> {
-    TERM.lock().expect("unable to lock TERM").move_cursor_up(n)
+/// Wraps [`crossterm::cursor::MoveUp`]
+pub fn move_cursor_up(n: u16) -> Result<()> {
+    execute!(stdout(), MoveUp(n))
 }
 
 /// Clear the current line.
 ///
 /// Position the cursor at the beginning of the current line.
 ///
-/// Wraps [`console::Term::clear_line`]
+/// Wraps [`crossterm::terminal::Clear`]
 pub fn clear_line() -> Result<()> {
-    TERM.lock().expect("unable to lock TERM").clear_line()
+    execute!(stdout(), Clear(ClearType::CurrentLine))
 }
 
 /// Attempts to write an entire buffer to the terminal.
 ///
-/// Wraps [`console::Term::write_all`]
+/// Wraps regular io functions but also moves the cursor to the first
+/// column with [`crossterm::cursor::MoveToColumn`]
 pub fn write_all(buf: &[u8]) -> Result<()> {
-    TERM.lock().expect("unable to lock TERM").write_all(buf)
+    stdout().write_all(buf)?;
+    stdout().flush()?;
+    Ok(())
 }
