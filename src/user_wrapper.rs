@@ -43,8 +43,10 @@ impl UserStream {
                     if matches!(event::poll(Duration::from_secs(0)), Ok(true))
                         && let Ok(Event::Key(key_event)) = event::read()
                     {
-                        tx.send(format!("{}", key_event.code))
-                            .unwrap_or_else(|e| panic!("error reading key event: {}", e));
+                        // If sending the key fails, it's probably because we
+                        // are in the process of being dropped, so we can
+                        // ignore it:
+                        let _ = tx.send(format!("{}", key_event.code));
                     } else {
                         // We tokio-sleep here to provide a cancellation point:
                         sleep(Duration::from_millis(127)).await;
