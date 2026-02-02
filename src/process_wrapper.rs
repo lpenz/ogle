@@ -17,7 +17,6 @@
 //! for testing.
 
 use color_eyre::Result;
-use pin_project::pin_project;
 use std::collections::VecDeque;
 use std::fmt;
 use std::io;
@@ -139,7 +138,6 @@ impl From<tps::Item<String>> for Item {
 /// A wrapper for [`tokio_process_stream::ProcessLineStream`].
 ///
 /// Also provides a virtual implementation for use in tests.
-#[pin_project(project = ProcessStreamProj)]
 pub enum ProcessStream {
     /// Wrapper for [`tokio_process_stream::ProcessLineStream`].
     Real { stream: Box<tps::ProcessLineStream> },
@@ -188,16 +186,16 @@ impl Stream for ProcessStream {
 
     #[instrument(level = "debug", ret, skip(cx))]
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let this = self.project();
+        let this = self.get_mut();
         match this {
-            ProcessStreamProj::Real { stream } => {
+            ProcessStream::Real { stream } => {
                 let next = Pin::new(stream).poll_next(cx);
                 match next {
                     Poll::Ready(opt) => Poll::Ready(opt.map(|i| i.into())),
                     Poll::Pending => Poll::Pending,
                 }
             }
-            ProcessStreamProj::Virtual { items } => Poll::Ready(items.pop_front()),
+            ProcessStream::Virtual { items } => Poll::Ready(items.pop_front()),
         }
     }
 }
