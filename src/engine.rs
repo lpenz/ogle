@@ -48,6 +48,12 @@ impl From<process_wrapper::Item> for EData {
     }
 }
 
+impl From<String> for EData {
+    fn from(s: String) -> Self {
+        EData::LineOut(s)
+    }
+}
+
 impl From<std::io::ErrorKind> for EData {
     fn from(e: std::io::ErrorKind) -> Self {
         EData::Err(e)
@@ -168,6 +174,7 @@ impl<SI: SysApi> Stream for Engine<SI> {
             match Pin::new(user).poll_next(cx) {
                 Poll::Ready(Some(UserEvent::Quit)) => {
                     *this.exit_by_user = true;
+                    return Poll::Ready(Some(EItem::new(now, ofmt!(&now, "user exit, graceful"))));
                 }
                 Poll::Ready(Some(UserEvent::Kill)) => {
                     if let State::Running { process, ticker: _ } = this.state
@@ -176,6 +183,7 @@ impl<SI: SysApi> Stream for Engine<SI> {
                         let _ = child.start_kill();
                     }
                     *this.exit_by_user = true;
+                    return Poll::Ready(Some(EItem::new(now, ofmt!(&now, "user exit, forced"))));
                 }
                 Poll::Ready(None) => {
                     *this.user = None;

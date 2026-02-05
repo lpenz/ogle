@@ -186,7 +186,7 @@ impl<SI: SysApi> Stream for View<SI> {
                             self.poll_next(cx)
                         }
                         EData::Done(sts) => {
-                            let line = ofmt_timeless!("exited with {}", sts);
+                            let line = ofmt_timeless!("subprocess exited with {}", sts);
                             this.process_line(line);
                             *this.duration = Some(&now - this.start);
                             // Sleeping starts now
