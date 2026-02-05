@@ -17,6 +17,7 @@
 //! for testing.
 
 use color_eyre::Result;
+use nix::sys::signal::Signal;
 use std::collections::VecDeque;
 use std::fmt;
 use std::io;
@@ -104,7 +105,13 @@ impl fmt::Display for ExitSts {
         match self {
             ExitSts::Success => write!(f, "success"),
             ExitSts::Code(code) => write!(f, "code {code}"),
-            ExitSts::Signal(signal) => write!(f, "signal {signal}"),
+            ExitSts::Signal(signal) => {
+                if let Ok(s) = Signal::try_from(*signal) {
+                    write!(f, "signal {signal} ({s})")
+                } else {
+                    write!(f, "signal {signal}")
+                }
+            }
         }
     }
 }
