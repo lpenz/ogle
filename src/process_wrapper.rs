@@ -217,9 +217,7 @@ pub mod test {
 
     use super::*;
 
-    async fn stream_cmd(
-        cmdstr: &[&str],
-    ) -> Result<impl StreamExt<Item = Item> + std::marker::Unpin + Send + 'static> {
+    async fn stream_cmd(cmdstr: &[&str]) -> Result<ProcessStream> {
         let cmd = Cmd::from(cmdstr);
         let process_stream = tps::ProcessLineStream::try_from(Command::from(&cmd))?;
         Ok(ProcessStream::from(process_stream))
@@ -232,6 +230,13 @@ pub mod test {
         stream.next().await.ok_or(eyre!("no item received"))
     }
 
+    async fn assert_closed<T>(stream: &mut T)
+    where
+        T: StreamExt<Item = Item> + std::marker::Unpin + Send + 'static,
+    {
+        assert_eq!(stream.next().await, None);
+    }
+
     #[tokio::test]
     async fn test_true() -> Result<()> {
         let mut stream = stream_cmd(&["true"]).await?;
@@ -241,6 +246,7 @@ pub mod test {
         };
         assert!(sts.unwrap().success());
         assert!(stream.next().await.is_none());
+        assert_closed(&mut stream).await;
         Ok(())
     }
 
@@ -252,6 +258,7 @@ pub mod test {
             return Err(eyre!("unexpected stream item {:?}", item));
         };
         assert!(!sts.unwrap().success());
+        assert_closed(&mut stream).await;
         Ok(())
     }
 
@@ -268,6 +275,7 @@ pub mod test {
             return Err(eyre!("unexpected stream item {:?}", item));
         };
         assert!(sts.unwrap().success());
+        assert_closed(&mut stream).await;
         Ok(())
     }
 
@@ -284,6 +292,27 @@ pub mod test {
             return Err(eyre!("unexpected stream item {:?}", item));
         };
         assert!(sts.unwrap().success());
+        assert_closed(&mut stream).await;
         Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_kill() -> Result<()> {
+        let mut stream = stream_cmd(&["/bin/sh", "-c", "sleep 9999999"]).await?;
+        if let Some(child) = stream.child_mut() {
+            let _ = child.start_kill();
+        }
+        let item = stream_next(&mut stream).await?;
+        assert_eq!(item, Item::Done(Ok(ExitSts::Signal(9))));
+        assert_closed(&mut stream).await;
+        Ok(())
+    }
+
+    #[test]
+    fn test_exitsts_display() {
+        assert_eq!(format!("{}", ExitSts::Success), "success");
+        assert_eq!(format!("{}", ExitSts::Code(42)), "code 42");
+        assert_eq!(format!("{}", ExitSts::Signal(1)), "signal 1 (SIGHUP)");
+        assert_eq!(format!("{}", ExitSts::Signal(12345)), "signal 12345");
     }
 }
