@@ -185,6 +185,11 @@ impl<SI: SysApi> Stream for View<SI> {
                             this.status_update_running(now);
                             self.poll_next(cx)
                         }
+                        EData::Msg(msg) => {
+                            this.println(ofmt!(&now, "{}", msg));
+                            this.status_update_running(now);
+                            self.poll_next(cx)
+                        }
                         EData::Done(sts) => {
                             let line = ofmt_timeless!("subprocess exited with {}", sts);
                             this.process_line(line);
@@ -226,6 +231,10 @@ impl<SI: SysApi> Stream for View<SI> {
                         this.status_update_running(now);
                         this.process_line(ofmt_timeless!("+ {}", this.cmd));
                         *this.state = State::Running;
+                        self.poll_next(cx)
+                    }
+                    EData::Msg(msg) => {
+                        this.println(ofmt!(&now, "{}", msg));
                         self.poll_next(cx)
                     }
                     EData::Err(e) => {

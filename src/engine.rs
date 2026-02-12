@@ -32,6 +32,7 @@ pub enum EData {
     StartSleep(Instant),
     LineOut(String),
     LineErr(String),
+    Msg(String),
     Done(ExitSts),
     Err(std::io::ErrorKind),
     Tick,
@@ -82,6 +83,13 @@ impl EItem {
             data: data.into(),
         }
     }
+
+    pub fn msg(time: Instant, msg: String) -> EItem {
+        Self {
+            time,
+            data: EData::Msg(msg),
+        }
+    }
 }
 
 // Engine ////////////////////////////////////////////////////////////
@@ -109,6 +117,12 @@ enum State {
     /// Don't execute the process again, either because of an exit
     /// condition or an error.
     Done,
+}
+
+impl State {
+    pub fn is_running(&self) -> bool {
+        matches!(self, State::Running { .. })
+    }
 }
 
 #[pin_project]
@@ -173,17 +187,25 @@ impl<SI: SysApi> Stream for Engine<SI> {
         if let Some(user) = this.user {
             match Pin::new(user).poll_next(cx) {
                 Poll::Ready(Some(UserEvent::Quit)) => {
-                    *this.exit_by_user = true;
-                    return Poll::Ready(Some(EItem::new(now, ofmt!(&now, "user exit, graceful"))));
+                    if !*this.exit_by_user {
+                        *this.exit_by_user = true;
+                        return if this.state.is_running() {
+                            Poll::Ready(Some(EItem::msg(now, "user exit, graceful".to_string())))
+                        } else {
+                            Poll::Ready(Some(EItem::msg(now, "user exit".to_string())))
+                        };
+                    }
                 }
                 Poll::Ready(Some(UserEvent::Kill)) => {
+                    *this.exit_by_user = true;
                     if let State::Running { process, ticker: _ } = this.state
                         && let Some(child) = process.child_mut()
                     {
                         let _ = child.start_kill();
+                        return Poll::Ready(Some(EItem::msg(now, "user exit, forced".to_string())));
+                    } else {
+                        return Poll::Ready(Some(EItem::msg(now, "user exit".to_string())));
                     }
-                    *this.exit_by_user = true;
-                    return Poll::Ready(Some(EItem::new(now, ofmt!(&now, "user exit, forced"))));
                 }
                 Poll::Ready(None) => {
                     *this.user = None;
