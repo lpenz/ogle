@@ -5,17 +5,16 @@ jobs:
   omnilint:
     uses: lpenz/omnilint/.github/workflows/omnilint.yml@v0.5.2
   rust:
-    uses: lpenz/ghworkflow-rust/.github/workflows/rust.yml@v0.26.4
+    uses: lpenz/ghworkflow-rust/.github/workflows/rust.yml@v0.27.0
     with:
       coveralls: true
       deb: true
       rpm: true
       enable_cargo-semver-checks: false
+      release_files: |
+        ogle ogle.1
       publish_cratesio: true
       publish_github_release: true
-      publish_github_release_files: |
-        target/release/ogle
-        target/release/ogle.1
       publish_packagecloud_repository_deb: |
         ["debian/debian/trixie",
          "ubuntu/ubuntu/noble"]
