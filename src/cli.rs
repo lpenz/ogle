@@ -2,13 +2,13 @@
 // This file is subject to the terms and conditions defined in
 // file 'LICENSE', which is part of this source code package.
 
-//! ogle's CLI using [`clap`]
-//!
-//! [`clap`]: https://docs.rs/clap/latest/clap/
+// ogle's CLI using [`clap`]
+//
+// This is not a module-level doc because we `include!` it in build.rs.
+//
+// [`clap`]: https://docs.rs/clap/latest/clap/
 
 use clap::Parser;
-
-use crate::process_wrapper::Cmd;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -30,15 +30,12 @@ pub struct Cli {
     pub command: Vec<String>,
 }
 
-impl Cli {
-    pub fn get_cmd(&self) -> Cmd {
-        Cmd::from(self.command.clone())
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    use crate::process_wrapper::Cmd;
     use color_eyre::Result;
+    use color_eyre::eyre::WrapErr;
+    use std::process::ExitStatus;
 
     use super::*;
 
@@ -80,15 +77,18 @@ mod tests {
         Ok(())
     }
 
+    async fn run_cmd(cmd: Vec<&str>) -> Result<ExitStatus> {
+        let cli = Cli::try_parse_from(cmd)?;
+        let cmd = Cmd::from(cli.command.clone());
+        let mut cmd = tokio::process::Command::from(&cmd);
+        cmd.spawn()?.wait().await.wrap_err("")
+    }
+
     #[tokio::test]
     async fn get_cmd_command() -> Result<()> {
-        let cli = Cli::try_parse_from(vec!["ogle", "true"])?;
-        let mut cmd = tokio::process::Command::from(&cli.get_cmd());
-        let exit = cmd.spawn()?.wait().await?;
+        let exit = run_cmd(vec!["ogle", "true"]).await?;
         assert!(exit.success());
-        let cli = Cli::try_parse_from(vec!["ogle", "false"])?;
-        let mut cmd = tokio::process::Command::from(&cli.get_cmd());
-        let exit = cmd.spawn()?.wait().await?;
+        let exit = run_cmd(vec!["ogle", "false"]).await?;
         assert!(!exit.success());
         Ok(())
     }

@@ -8,6 +8,7 @@ use tracing::instrument;
 use crate::cli::Cli;
 use crate::engine::Engine;
 use crate::output::output;
+use crate::process_wrapper::Cmd;
 use crate::sys::SysApi;
 use crate::time_wrapper::Duration;
 use crate::view::View;
@@ -16,14 +17,15 @@ use crate::view::View;
 pub async fn run<SI: SysApi>(cli: Cli, sys: SI) -> Result<()> {
     let refresh = Duration::milliseconds(250);
     let sleep = Duration::seconds(cli.period.into());
+    let cmd = Cmd::from(cli.command.clone());
     let engine = Engine::new(
         sys.clone(),
-        cli.get_cmd(),
+        cmd.clone(),
         refresh,
         sleep,
         cli.until_success,
         cli.until_failure,
     )?;
-    let view = View::new(cli.get_cmd(), refresh, sleep, engine);
+    let view = View::new(cmd, refresh, sleep, engine);
     output(view).await
 }
