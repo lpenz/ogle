@@ -11,7 +11,7 @@ use color_eyre::{Result, eyre::eyre};
 use man::prelude::*;
 use std::env;
 use std::error::Error;
-use std::fs::{self, File};
+use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path;
 
@@ -100,7 +100,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Generate shell completions:
     let mut cmd = Cli::command();
     generate_to(Bash, &mut cmd, "ogle", &outdir)?;
-    generate_to(Fish, &mut cmd, "ogle", &outdir)?;
+    let path = generate_to(Fish, &mut cmd, "ogle", &outdir)?;
+    let mut fd = OpenOptions::new().append(true).open(path)?;
+    writeln!(fd, "complete -c ogle --wraps command")?;
+    writeln!(fd, "complete -c ogle --no-files")?;
     generate_to(Zsh, &mut cmd, "ogle", &outdir)?;
     Ok(())
 }
