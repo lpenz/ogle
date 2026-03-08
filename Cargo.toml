@@ -59,7 +59,6 @@ assets = [
     ["LICENSE", "usr/share/doc/ogle/", "644"],
     ["AUTHORS", "usr/share/doc/ogle/", "644"],
     ["README.md", "usr/share/doc/ogle/", "644"],
-    ["CHANGELOG.md", "usr/share/doc/ogle/", "644"],
     ["target/release/ogle.bash", "/usr/share/bash-completion/completions/", "644"],
     ["target/release/_ogle", "/usr/share/zsh/site-functions/", "644"],
     ["target/release/ogle.fish", "/usr/share/fish/vendor_completions.d/", "644"],
