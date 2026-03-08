@@ -1,7 +1,7 @@
 [package]
 name = "ogle"
 description = "Execute a command periodically, showing the output only when it changes"
-version = "2.3.3"
+version = "2.3.4"
 authors = ["Leandro Lisboa Penz <lpenz@lpenz.org>"]
 edition = "2024"
 license = "MIT"
@@ -13,26 +13,26 @@ categories = ["command-line-utilities"]
 keywords = ["watch", "command-line"]
 
 [dependencies]
-clap = { version = "4.5.57", features = ["derive"] }
+clap = { version = "4.5.60", features = ["derive"] }
 color-eyre = "0.6.5"
-tokio = { version = "1.49.0", features = ["macros", "rt-multi-thread", "io-std", "tracing"] }
+tokio = { version = "1.50.0", features = ["macros", "rt-multi-thread", "io-std", "tracing"] }
 tokio-stream = { version = "0.1.18", features = ["io-util"] }
 tokio-process-stream = "0.4.1"
 tracing = { version = "0.1.44", features = ["log"] }
 tracing-subscriber = { version = "0.3.22", features = ["env-filter", "tracing-log", "fmt"] }
 enum_dispatch = "0.3.13"
-pin-project = "1.1.10"
+pin-project = "1.1.11"
 crossterm = { version = "0.29.0", features = ["event-stream"] }
 console-subscriber = { version = "0.5.0", optional = true }
-nix = { version = "0.31.1", features = ["signal"] }
+nix = { version = "0.31.2", features = ["signal"] }
 
 [dependencies.chrono]
-version = "0.4.43"
+version = "0.4.44"
 default-features = false
 features = ["clock"]
 
 [build-dependencies]
-clap = { version = "4.5.57", features = ["derive"] }
+clap = { version = "4.5.60", features = ["derive"] }
 clap_complete = "4.5.66"
 color-eyre = "0.6.5"
 man = "0.3.0"
