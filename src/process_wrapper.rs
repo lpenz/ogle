@@ -298,7 +298,7 @@ pub mod test {
 
     #[tokio::test]
     async fn test_kill() -> Result<()> {
-        let mut stream = stream_cmd(&["/bin/sh", "-c", "sleep 9999999"]).await?;
+        let mut stream = stream_cmd(&["/bin/sh", "-c", "sleep 60"]).await?;
         if let Some(child) = stream.child_mut() {
             let _ = child.start_kill();
         }
