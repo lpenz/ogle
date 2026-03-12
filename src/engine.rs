@@ -125,7 +125,7 @@ impl State {
     }
 }
 
-#[pin_project]
+#[pin_project(project = EngineProjection)]
 #[derive(Default, Debug)]
 pub struct Engine<SI: SysApi> {
     sys: SI,
@@ -161,19 +161,21 @@ impl<SI: SysApi> Engine<SI> {
             exit_by_user: false,
         })
     }
+}
+
+impl<SI: SysApi> EngineProjection<'_, SI> {
+    fn sleep(&mut self, now: Instant) -> EItem {
+        let deadline = &now + self.sleep;
+        let ticker = IntervalStream::new((*self.refresh).into());
+        *self.state = State::Sleeping { deadline, ticker };
+        EItem::new(now, EData::StartSleep(deadline))
+    }
 
     fn run(&mut self) -> std::result::Result<(), std::io::Error> {
         let process = self.sys.run_command(self.cmd.clone())?;
-        let ticker = IntervalStream::new(self.refresh.into());
-        self.state = State::Running { process, ticker };
+        let ticker = IntervalStream::new((*self.refresh).into());
+        *self.state = State::Running { process, ticker };
         Ok(())
-    }
-
-    fn sleep(&mut self, now: Instant) -> EItem {
-        let deadline = &now + &self.sleep;
-        let ticker = IntervalStream::new(self.refresh.into());
-        self.state = State::Sleeping { deadline, ticker };
-        EItem::new(now, EData::StartSleep(deadline))
     }
 }
 
@@ -182,7 +184,7 @@ impl<SI: SysApi> Stream for Engine<SI> {
 
     #[instrument(level = "debug", ret, skip(cx))]
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let this = self.as_mut().project();
+        let mut this = self.as_mut().project();
         let now = this.sys.now();
         if let Some(user) = this.user {
             match Pin::new(user).poll_next(cx) {
@@ -215,12 +217,18 @@ impl<SI: SysApi> Stream for Engine<SI> {
         }
         let mut state = std::mem::take(&mut *this.state);
         return match state {
-            State::Start => match self.run() {
-                Ok(_) => Poll::Ready(Some(EItem::new(now, EData::StartRun))),
-                Err(e) => Poll::Ready(Some(EItem::new(now, e))),
-            },
+            State::Start => {
+                let ret = this.run();
+                match ret {
+                    Ok(_) => Poll::Ready(Some(EItem::new(now, EData::StartRun))),
+                    Err(e) => {
+                        *this.state = State::Done;
+                        Poll::Ready(Some(EItem::new(now, e)))
+                    }
+                }
+            }
             State::StartSleeping => {
-                let item = self.sleep(now);
+                let item = this.sleep(now);
                 Poll::Ready(Some(item))
             }
             State::Sleeping {
