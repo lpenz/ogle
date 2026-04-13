@@ -20,43 +20,11 @@ include!("src/cli.rs");
 fn generate_man_page<P: AsRef<path::Path>>(outdir: P) -> Result<()> {
     let outdir = outdir.as_ref();
     let man_path = outdir.join("ogle.1");
-    let manpage = Manual::new("ogle")
-        .about("Run a command-line periodically showing the output only when it changes")
-        .author(Author::new("Leandro Lisboa Penz").email("lpenz@lpenz.org"))
-        .flag(
-            Flag::new()
-                .short("-c")
-                .long("--shell")
-                .help("Invoke the shell on the single command argument"),
-        )
-        .flag(
-            Flag::new()
-                .short("-z")
-                .long("--until-success")
-                .help("Loop until the command exists with success"),
-        )
-        .option(
-            Opt::new("period")
-                .short("-p")
-                .long("--period")
-                .default_value("1")
-                .help("Period to sleep between executions"),
-        )
-        .flag(
-            Flag::new()
-                .short("-h")
-                .long("--help")
-                .help("Prints help information"),
-        )
-        .flag(
-            Flag::new()
-                .short("-V")
-                .long("--version")
-                .help("Prints version information"),
-        )
-        .arg(Arg::new("COMMAND"))
-        .arg(Arg::new("[ ARGS ]"))
-        .description("ogle runs the provided command and stores its output, and starts printing it only when it differs from the last execution.\n\nA status line shows a progress bar based on the duration of the last execution, and other information.\n\nPress ENTER is pressed and the current execution finishes.")
+    let cmd = Cli::command();
+    let manpage: Manual = clap2man::Manual::try_from(&cmd)
+        .map_err(|e| eyre!(e))?
+        .into();
+    let manpage = manpage
         .example(
             Example::new()
                 .text("Monitor the current directory for changes")

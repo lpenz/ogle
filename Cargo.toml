@@ -34,6 +34,7 @@ features = ["clock"]
 [build-dependencies]
 clap = { version = "4.5.60", features = ["derive"] }
 clap_complete = "4.5.66"
+clap2man = "0.1.0"
 color-eyre = "0.6.5"
 man = "0.3.0"
 

@@ -11,7 +11,12 @@
 use clap::Parser;
 
 #[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
+#[command(
+    author,
+    version,
+    about,
+    long_about = "ogle runs the provided command and stores its output, and starts printing it only when it differs from the last execution.\n\nA status line shows a progress bar based on the duration of the last execution, and other information.\n\nPressing ENTER terminates the current execution and exits."
+)]
 pub struct Cli {
     /// Period to sleep between executions
     #[arg(short, long, default_value = "1")]
