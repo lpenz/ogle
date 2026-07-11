@@ -140,6 +140,7 @@ impl<SI: SysApi> ViewProjection<'_, SI> {
     fn status_update_sleeping(&mut self, now: Instant, deadline: Instant) {
         self.status_maybe_clear();
         let mut spinner = *self.spinner;
+        // Use self.start (when sleep began) instead of now:
         self._println(ofmt!(
             self.start,
             "{}",
