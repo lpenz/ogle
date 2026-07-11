@@ -11,17 +11,20 @@ use color_eyre::{Result, eyre::eyre};
 use man::prelude::*;
 use std::env;
 use std::error::Error;
-use std::fs::{self, File, OpenOptions};
+use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path;
 
 include!("src/cli.rs");
 
-fn generate_man_page<P: AsRef<path::Path>>(outdir: P) -> Result<()> {
+fn generate_man_page<P: AsRef<path::Path>>(
+    cmd: &clap::Command,
+    name: &str,
+    outdir: P,
+) -> Result<()> {
     let outdir = outdir.as_ref();
-    let man_path = outdir.join("ogle.1");
-    let cmd = Cli::command();
-    let manpage: Manual = clap2man::Manual::try_from(&cmd)
+    let man_path = outdir.join(format!("{}.1", name));
+    let manpage: Manual = clap2man::Manual::try_from(cmd)
         .map_err(|e| eyre!(e))?
         .into();
     let manpage = manpage
@@ -44,18 +47,22 @@ fn generate_man_page<P: AsRef<path::Path>>(outdir: P) -> Result<()> {
             Example::new()
                 .text("Poor man's top using ps")
                 .command("ogle -- /bin/bash -c 'ps -eo %cpu,args --sort -%cpu | head'"),
-        )
-        .render();
-    File::create(man_path)?.write_all(manpage.as_bytes())?;
+        );
+    std::fs::write(man_path, manpage.render())?;
     Ok(())
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
     color_eyre::install()?;
+    let cmd = Cli::command();
+    let name = cmd
+        .get_display_name()
+        .unwrap_or_else(|| cmd.get_name())
+        .to_owned();
     let mut outdir =
         path::PathBuf::from(env::var_os("OUT_DIR").ok_or_else(|| eyre!("error getting OUT_DIR"))?);
     fs::create_dir_all(&outdir)?;
-    generate_man_page(&outdir)?;
+    generate_man_page(&cmd, &name, &outdir)?;
     // build/ogle-*/out
     outdir.pop();
     // build/ogle-*
@@ -64,14 +71,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     outdir.pop();
     // .
     // (either target/release or target/build)
-    generate_man_page(&outdir)?;
+    generate_man_page(&cmd, &name, &outdir)?;
     // Generate shell completions:
-    let mut cmd = Cli::command();
-    generate_to(Bash, &mut cmd, "ogle", &outdir)?;
-    let path = generate_to(Fish, &mut cmd, "ogle", &outdir)?;
+    generate_to(Bash, &mut cmd.clone(), &name, &outdir)?;
+    let path = generate_to(Fish, &mut cmd.clone(), &name, &outdir)?;
     let mut fd = OpenOptions::new().append(true).open(path)?;
     writeln!(fd, "complete -c ogle --wraps command")?;
     writeln!(fd, "complete -c ogle --no-files")?;
-    generate_to(Zsh, &mut cmd, "ogle", &outdir)?;
+    generate_to(Zsh, &mut cmd.clone(), &name, &outdir)?;
     Ok(())
 }
