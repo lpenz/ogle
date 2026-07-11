@@ -91,6 +91,10 @@ impl From<ExitStatus> for ExitSts {
         if sts.success() {
             ExitSts::Success
         } else if let Some(code) = sts.code() {
+            debug_assert!(
+                (0..=255).contains(&code),
+                "exit code {code} out of u8 range"
+            );
             ExitSts::Code(code as u8)
         } else if let Some(signal) = sts.signal() {
             ExitSts::Signal(signal)
