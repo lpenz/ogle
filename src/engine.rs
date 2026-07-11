@@ -283,13 +283,8 @@ impl<SI: SysApi> Stream for Engine<SI> {
                     }
                 },
                 Poll::Ready(None) => {
-                    #[cfg(not(test))]
-                    panic!("We should never see the underlying stream end");
-                    #[cfg(test)]
-                    {
-                        *this.state = State::Done;
-                        Poll::Ready(None)
-                    }
+                    *this.state = State::Done;
+                    Poll::Ready(None)
                 }
                 Poll::Pending => {
                     // Process doesn't have an item, it must be the ticker
