@@ -6,6 +6,6 @@ use std::error::Error;
 
 fn main() -> Result<(), Box<dyn Error>> {
     #[cfg(feature = "console-subscriber")]
-    console_subscriber::init();
+    let _ = std::panic::catch_unwind(console_subscriber::init);
     ogle::main()
 }
