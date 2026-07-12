@@ -343,12 +343,14 @@ mod tests {
     #[tokio::test]
     async fn test_basic_success() -> Result<()> {
         let list = vec![
-            Item::Stdout("stdout".into()),
-            Item::Stderr("stderr".into()),
+            Item::Stdout("line1".into()),
+            Item::Stdout("line2".into()),
+            Item::Stderr("err1".into()),
+            Item::Stdout("line3".into()),
             Item::Done(Ok(ExitSts::default())),
         ];
         let mut sys = SysVirtual::default();
-        sys.set_items(list.clone());
+        sys.set_items(list);
         let streamer = Engine::new_virtual(sys, true, true)?;
         let streamed = streamer.collect::<Vec<_>>().await;
         let mut now = Instant::default();
@@ -361,16 +363,24 @@ mod tests {
                 },
                 EItem {
                     time: now.incr(),
-                    data: EData::LineOut("stdout".to_owned())
+                    data: EData::LineOut("line1".into())
                 },
                 EItem {
                     time: now.incr(),
-                    data: EData::LineErr("stderr".to_owned())
+                    data: EData::LineOut("line2".into())
+                },
+                EItem {
+                    time: now.incr(),
+                    data: EData::LineErr("err1".into())
+                },
+                EItem {
+                    time: now.incr(),
+                    data: EData::LineOut("line3".into())
                 },
                 EItem {
                     time: now.incr(),
                     data: EData::Done(ExitSts::default())
-                }
+                },
             ]
         );
         Ok(())
@@ -394,6 +404,54 @@ mod tests {
                 EItem {
                     time: now.incr(),
                     data: EData::Err(io::ErrorKind::UnexpectedEof)
+                }
+            ]
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_exit_on_failure_with_failure() -> Result<()> {
+        let list = vec![Item::Done(Ok(ExitSts::Code(1)))];
+        let mut sys = SysVirtual::default();
+        sys.set_items(list);
+        let streamer = Engine::new_virtual(sys, false, true)?;
+        let streamed = streamer.collect::<Vec<_>>().await;
+        let mut now = Instant::default();
+        assert_eq!(
+            streamed,
+            vec![
+                EItem {
+                    time: now.incr(),
+                    data: EData::StartRun,
+                },
+                EItem {
+                    time: now.incr(),
+                    data: EData::Done(ExitSts::Code(1)),
+                }
+            ]
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_exit_on_success_with_success() -> Result<()> {
+        let list = vec![Item::Done(Ok(ExitSts::Success))];
+        let mut sys = SysVirtual::default();
+        sys.set_items(list);
+        let streamer = Engine::new_virtual(sys, true, false)?;
+        let streamed = streamer.collect::<Vec<_>>().await;
+        let mut now = Instant::default();
+        assert_eq!(
+            streamed,
+            vec![
+                EItem {
+                    time: now.incr(),
+                    data: EData::StartRun,
+                },
+                EItem {
+                    time: now.incr(),
+                    data: EData::Done(ExitSts::Success),
                 }
             ]
         );
