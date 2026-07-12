@@ -121,4 +121,36 @@ mod test {
         let mut spinner = '0';
         let _ = spinner_get(&mut spinner);
     }
+
+    #[test]
+    fn progbar_sleeping_short_period() {
+        let sleep = Duration::seconds(1);
+        let now = Instant::default();
+        let deadline = &now + &sleep;
+        let result = progbar_sleeping(0, &sleep, &now, &deadline, '-');
+        assert!(result.contains("sleeping"));
+        assert!(result.contains("-"));
+        assert!(!result.contains("unchanged"));
+    }
+
+    #[test]
+    fn progbar_running_with_duration() {
+        let start = Instant::default();
+        let duration = Duration::seconds(4);
+        let now = &start + &Duration::seconds(2);
+        let result = progbar_running(
+            150,
+            0,
+            &now,
+            &start,
+            Some(duration),
+            &Duration::milliseconds(250),
+            '\\',
+        );
+        assert!(result.is_ok());
+        let text = result.unwrap();
+        assert!(text.contains("running"));
+        assert!(text.contains("\\"));
+        assert!(text.contains("["));
+    }
 }
