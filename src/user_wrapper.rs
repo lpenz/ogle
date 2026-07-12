@@ -130,3 +130,46 @@ impl Stream for UserStream {
         }
     }
 }
+
+// Tests /////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::{KeyCode, KeyModifiers};
+
+    #[test]
+    fn test_quit_on_q() {
+        let ke = KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE);
+        let event = UserEvent::try_from(ke).unwrap();
+        assert_eq!(event, UserEvent::Quit);
+    }
+
+    #[test]
+    fn test_quit_on_ctrl_d() {
+        let ke = KeyEvent::new(KeyCode::Char('d'), KeyModifiers::CONTROL);
+        let event = UserEvent::try_from(ke).unwrap();
+        assert_eq!(event, UserEvent::Quit);
+    }
+
+    #[test]
+    fn test_kill_on_k() {
+        let ke = KeyEvent::new(KeyCode::Char('k'), KeyModifiers::NONE);
+        let event = UserEvent::try_from(ke).unwrap();
+        assert_eq!(event, UserEvent::Kill);
+    }
+
+    #[test]
+    fn test_kill_on_ctrl_c() {
+        let ke = KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL);
+        let event = UserEvent::try_from(ke).unwrap();
+        assert_eq!(event, UserEvent::Kill);
+    }
+
+    #[test]
+    fn test_unrecognized_key() {
+        let ke = KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE);
+        let result = UserEvent::try_from(ke);
+        assert!(result.is_err());
+    }
+}
