@@ -16,6 +16,7 @@ jobs:
       publish_github_release: true
       publish_packagecloud_repository_deb: |
         ["debian/debian/trixie",
+         "debian/debian/forky",
          "ubuntu/ubuntu/noble"]
       publish_packagecloud_repository_rpm: |
         ["rpm/rpm_any/rpm_any"]

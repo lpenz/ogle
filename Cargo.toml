@@ -2,8 +2,8 @@
 name = "ogle"
 description = "Execute a command periodically, showing the output only when it changes"
 version = "2.3.8"
-authors = ["Leandro Lisboa Penz <lpenz@lpenz.org>"]
 edition = "2024"
+authors = ["Leandro Lisboa Penz <lpenz@lpenz.org>"]
 license = "MIT"
 readme = "README.md"
 homepage = "https://github.com/lpenz/ogle"
