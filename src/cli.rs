@@ -22,11 +22,11 @@ pub struct Cli {
     #[arg(short, long, default_value = "1")]
     pub period: u32,
 
-    /// Loop until the command exists with success
+    /// Loop until the command exits with success
     #[arg(short = 'z', long = "until-success")]
     pub until_success: bool,
 
-    /// Loop until the command exists with a failure
+    /// Loop until the command exits with a failure
     #[arg(short = 'e', long = "until-failure")]
     pub until_failure: bool,
 

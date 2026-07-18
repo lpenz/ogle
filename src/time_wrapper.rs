@@ -101,7 +101,7 @@ impl Duration {
         self.0.num_seconds()
     }
 
-    /// Returns the total number of whole seconds in the `Duration`.
+    /// Returns the total number of whole milliseconds in the `Duration`.
     ///
     /// Wraps [`chrono::Duration::num_milliseconds`].
     pub const fn num_milliseconds(&self) -> i64 {

@@ -47,9 +47,9 @@
 //! To make it fully testable, it uses a layered architecture based on
 //! tokio streams which ends up being similar to how we use pipes in a
 //! shell. We can divide it in the following layers:
-//! - wrappers: we have 3 wrapper modules that abtract external
+//! - wrappers: we have 3 wrapper modules that abstract external
 //!   libraries to provide us simpler types or types that provide that
-//!   `impl` traits we need. They also make it easier to replate the
+//!   `impl` traits we need. They also make it easier to replace the
 //!   underlying implementation in the future, if necessary. Namely:
 //!   - [`process_wrapper`]: wraps process instantiation and I/O, and
 //!     provides an [`Item`](process_wrapper::Item) that implements
