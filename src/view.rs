@@ -84,7 +84,7 @@ impl<SI: SysApi> View<SI> {
 }
 
 impl<SI: SysApi> ViewProjection<'_, SI> {
-    fn _println(&mut self, mut s: String) {
+    fn write_line(&mut self, mut s: String) {
         s.push('\n');
         self.pending
             .push_back(OutputCommand::WriteAll(WriteAll(s.as_bytes().to_vec())))
@@ -101,7 +101,7 @@ impl<SI: SysApi> ViewProjection<'_, SI> {
 
     fn println(&mut self, s: String) {
         self.status_maybe_clear();
-        self._println(s);
+        self.write_line(s);
         *self.printed_status = false;
     }
 
@@ -119,7 +119,7 @@ impl<SI: SysApi> ViewProjection<'_, SI> {
     fn status_update_running(&mut self, now: Instant) {
         self.status_maybe_clear();
         let mut spinner = *self.spinner;
-        self._println(ofmt!(
+        self.write_line(ofmt!(
             &now,
             "{}",
             progbar_running(
@@ -141,7 +141,7 @@ impl<SI: SysApi> ViewProjection<'_, SI> {
         self.status_maybe_clear();
         let mut spinner = *self.spinner;
         // Use self.start (when sleep began) instead of now:
-        self._println(ofmt!(
+        self.write_line(ofmt!(
             self.start,
             "{}",
             progbar_sleeping(

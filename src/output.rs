@@ -52,7 +52,6 @@ pub enum OutputCommand {
 
 /// This function runs all commands in the provided stream until it is
 /// exhausted.
-#[allow(dead_code)]
 pub async fn output<S>(mut stream: S) -> Result<()>
 where
     S: Stream<Item = OutputCommand> + std::marker::Unpin,
