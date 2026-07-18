@@ -31,7 +31,7 @@ pub struct Cli {
     pub until_failure: bool,
 
     /// The command to run
-    #[clap(value_parser, required = true)]
+    #[arg(value_parser, required = true)]
     pub command: Vec<String>,
 }
 
