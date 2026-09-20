@@ -144,7 +144,7 @@ mod test {
         let now2 = sys.now();
         assert!(&now2 - &now < ten);
         let now3 = &now2 + &ten;
-        assert!(&now3 > &now2);
+        assert!(now3 > now2);
     }
 
     #[test]

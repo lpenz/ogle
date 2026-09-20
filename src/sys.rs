@@ -171,7 +171,7 @@ pub mod test {
         let sys = SysReal::default();
         let now = sys.now();
         let now2 = sys.now();
-        assert!(&now2 >= &now);
+        assert!(now2 >= now);
     }
 
     #[tokio::test]
