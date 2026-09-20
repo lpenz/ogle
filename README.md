@@ -1,10 +1,10 @@
+# `<O>` ogle
+
 [![CI](https://github.com/lpenz/ogle/actions/workflows/ci.yml/badge.svg)](https://github.com/lpenz/ogle/actions/workflows/ci.yml)
 [![coveralls](https://coveralls.io/repos/github/lpenz/ogle/badge.svg?branch=main)](https://coveralls.io/github/lpenz/ogle?branch=main)
 [![dependency status](https://deps.rs/repo/github/lpenz/ogle/status.svg)](https://deps.rs/repo/github/lpenz/ogle)
 [![crates.io](https://img.shields.io/crates/v/ogle)](https://crates.io/crates/ogle)
 [![packagecloud](https://img.shields.io/badge/deb-packagecloud.io-844fec.svg)](https://packagecloud.io/app/lpenz/debian/search?q=ogle)
-
-# `<O>` ogle
 
 **ogle** is a program that runs the given command-line periodically,
 showing the output only when it is different than the last.
@@ -23,6 +23,8 @@ shell, the error value is displayed.
 
 ogle also supports limited interactive control with one-character
 commands followed by ENTER:
+
+- `k`: kill the subprocess and quit.
 - `q`: quit after when the process is no longer running.
 
 ## Installation
@@ -30,7 +32,7 @@ commands followed by ENTER:
 If you're a **Rust programmer**, ogle can be installed with `cargo`:
 
 ```bash
-$ cargo install ogle
+cargo install ogle
 ```
 
 If you're a **Debian** user, ogle is available in
@@ -39,23 +41,21 @@ these
 [instruction](https://packagecloud.io/lpenz/debian/install#manual) to
 use the package repository.
 
-
 ## Internals
 
 To make it fully testable, it uses a layered architecture based on
 tokio streams which ends up being similar to how we use pipes in a
 shell. We can divide it in the following layers:
+
 - wrappers: we have 3 wrapper modules that abtract external
   libraries to provide us simpler types or types that provide that
-  `impl` traits we need. They also make it easier to replate the
+  `impl` traits we need. They also make it easier to replace the
   underlying implementation in the future, if necessary. Namely:
   - [`process_wrapper`]: wraps process instantiation and I/O, and
     provides an [`Item`](process_wrapper::Item) that implements
     `Eq` so that we can use it in tests.
   - [`term_wrapper`]: implements terminal functions, mostly for
-    output. As we are currently wrapping [`console`] and its
-    functions require a [`console::Term`] object, we end up using
-    a mutex here to abstract the singleton.
+    output. As we are currently wrapping [`crossterm`].
   - [`user_wrapper`]: abstract user interaction. At the moment, we
     just monitor `stdin` in line mode, and ogle exits gracefully
     when that's detected.
@@ -75,19 +75,12 @@ shell. We can divide it in the following layers:
 sys -> engine -> view -> output
 ```
 
-[watch (1)]: https://linux.die.net/man/1/watch
 [`process_wrapper`]: https://docs.rs/ogle/latest/ogle/process_wrapper/index.html
-[`Item`]: https://docs.rs/ogle/latest/ogle/process_wrapper/enum.Item.html
 [`term_wrapper`]: https://docs.rs/ogle/latest/ogle/term_wrapper/index.html
-[`console`]: https://docs.rs/console/latest/console/index.html
-[`console::Term`]: https://docs.rs/console/latest/console/term/struct.Term.html
 [`user_wrapper`]: https://docs.rs/ogle/latest/ogle/user_wrapper/index.html
 [`time_wrapper`]: https://docs.rs/ogle/latest/ogle/time_wrapper/index.html
-[`Instant`]: https://docs.rs/ogle/latest/ogle/time_wrapper/struct.Instant.html
-[`Duration`]: https://docs.rs/ogle/latest/ogle/time_wrapper/struct.Duration.html
 [`chrono`]: https://docs.rs/chrono/latest/chrono/index.html
 [`sys`]: https://docs.rs/ogle/latest/ogle/sys/index.html
 [`sys::SysApi`]: https://docs.rs/ogle/latest/ogle/sys/trait.SysApi.html
 [`sys::SysReal`]: https://docs.rs/ogle/latest/ogle/sys/struct.SysReal.html
 [`sys::SysVirtual`]: https://docs.rs/ogle/latest/ogle/sys/struct.SysVirtual.html
-

@@ -25,6 +25,8 @@
 //!
 //! ogle also supports limited interactive control with one-character
 //! commands followed by ENTER:
+//!
+//! - `k`: kill the subprocess and quit.
 //! - `q`: quit after when the process is no longer running.
 //!
 //! # Installation
@@ -32,7 +34,7 @@
 //! If you're a **Rust programmer**, ogle can be installed with `cargo`:
 //!
 //! ```bash
-//! $ cargo install ogle
+//! cargo install ogle
 //! ```
 //!
 //! If you're a **Debian** user, ogle is available in
@@ -40,7 +42,6 @@
 //! these
 //! [instruction](https://packagecloud.io/lpenz/debian/install#manual) to
 //! use the package repository.
-//!
 //!
 //! # Internals
 //!
@@ -74,9 +75,6 @@
 //! ```no_compile
 //! sys -> engine -> view -> output
 //! ```
-//!
-//! [watch (1)]: https://linux.die.net/man/1/watch
-//!
 
 use clap::Parser;
 use std::error::Error;
