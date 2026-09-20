@@ -3,9 +3,9 @@ name: CI
 on: [workflow_dispatch, push, pull_request]  # yamllint disable-line rule:truthy
 jobs:
   omnilint:
-    uses: lpenz/omnilint/.github/workflows/omnilint.yml@v0.5.2
+    uses: lpenz/omnilint/.github/workflows/omnilint.yml@v0.10.2
   rust:
-    uses: lpenz/ghworkflow-rust/.github/workflows/rust.yml@v0.28.2
+    uses: lpenz/ghworkflow-rust/.github/workflows/rust.yml@v0.33.0
     with:
       coveralls: true
       deb: true
@@ -17,7 +17,7 @@ jobs:
       publish_packagecloud_repository_deb: |
         ["debian/debian/trixie",
          "debian/debian/forky",
-         "ubuntu/ubuntu/noble"]
+         "ubuntu/ubuntu/resolute"]
       publish_packagecloud_repository_rpm: |
         ["rpm/rpm_any/rpm_any"]
     secrets:
@@ -26,9 +26,9 @@ jobs:
   commit-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5.0.0
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
-      - uses: commit-check/commit-check-action@v2.4.2
+      - uses: commit-check/commit-check-action@v2.16.0
         with:
           branch: false
