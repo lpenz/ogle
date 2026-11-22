@@ -6,7 +6,6 @@ edition = "2024"
 authors = ["Leandro Lisboa Penz <lpenz@lpenz.org>"]
 license = "MIT"
 readme = "README.md"
-homepage = "https://github.com/lpenz/ogle"
 repository = "https://github.com/lpenz/ogle"
 build = "build.rs"
 categories = ["command-line-utilities"]
