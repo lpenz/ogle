@@ -24,9 +24,9 @@ pub fn progbar_sleeping(
     spinner: char,
 ) -> String {
     let prefix = get_prefix(unchanged_runs);
-    if sleep.num_seconds() > 1 {
+    if sleep.as_secs() > 1 {
         let left = deadline - now;
-        let left = left.num_seconds() + 1;
+        let left = left.as_secs() + 1;
         format!("{prefix}sleeping for {left}s [{spinner}]")
     } else {
         format!("{prefix}sleeping [{spinner}]")
@@ -43,15 +43,15 @@ pub fn progbar_running(
     spinner: char,
 ) -> Result<String> {
     let duration = duration.unwrap_or_default();
-    let duration_millis = duration.num_milliseconds();
+    let duration_millis = duration.as_millis();
     let prefix = get_prefix(unchanged_runs);
-    if duration_millis == 0 || refresh.num_milliseconds() == 0 {
+    if duration_millis == 0 || refresh.as_millis() == 0 {
         return Ok(format!("{prefix}running [{spinner}]"));
     }
     let head = format!("{prefix}running [");
     let tail = format!("] [{spinner}]");
     let barsize = {
-        let b = usize::try_from(duration_millis / refresh.num_milliseconds())?;
+        let b = usize::try_from(duration_millis / refresh.as_millis())?;
         let overhead = head.len() + tail.len() + 1;
         debug_assert!(
             width >= overhead,
@@ -67,7 +67,7 @@ pub fn progbar_running(
         format!("{prefix}running [{spinner}]")
     } else {
         let elapsed = now - start;
-        let ratio = elapsed.num_milliseconds() as f32 / duration_millis as f32;
+        let ratio = elapsed.as_millis() as f32 / duration_millis as f32;
         let left = if ratio < 1_f32 {
             ((barsize as f32) * ratio).ceil() as usize
         } else {
@@ -124,7 +124,7 @@ mod test {
 
     #[test]
     fn progbar_sleeping_short_period() {
-        let sleep = Duration::seconds(1);
+        let sleep = Duration::from_secs(1);
         let now = Instant::default();
         let deadline = &now + &sleep;
         let result = progbar_sleeping(0, &sleep, &now, &deadline, '-');
@@ -136,15 +136,15 @@ mod test {
     #[test]
     fn progbar_running_with_duration() {
         let start = Instant::default();
-        let duration = Duration::seconds(4);
-        let now = &start + &Duration::seconds(2);
+        let duration = Duration::from_secs(4);
+        let now = &start + &Duration::from_secs(2);
         let result = progbar_running(
             150,
             0,
             &now,
             &start,
             Some(duration),
-            &Duration::milliseconds(250),
+            &Duration::from_millis(250),
             '\\',
         );
         assert!(result.is_ok());

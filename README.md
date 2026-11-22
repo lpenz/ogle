@@ -62,7 +62,7 @@ shell. We can divide it in the following layers:
   - [`time_wrapper`]: home of the
     [`Instant`](time_wrapper::Instant) and
     [`Duration`](time_wrapper::Duration) types, which use types
-    from [`chrono`] at the moment.
+    from [`jiff`] at the moment.
 - [`sys`]: most of the ogle code doesn't really call functions
   that interact with the host system - we have the `sys` module
   for that. The module does that by providing a [`sys::SysApi`]
@@ -79,7 +79,7 @@ sys -> engine -> view -> output
 [`term_wrapper`]: https://docs.rs/ogle/latest/ogle/term_wrapper/index.html
 [`user_wrapper`]: https://docs.rs/ogle/latest/ogle/user_wrapper/index.html
 [`time_wrapper`]: https://docs.rs/ogle/latest/ogle/time_wrapper/index.html
-[`chrono`]: https://docs.rs/chrono/latest/chrono/index.html
+[`jiff`]: https://docs.rs/jiff/latest/jiff/index.html
 [`sys`]: https://docs.rs/ogle/latest/ogle/sys/index.html
 [`sys::SysApi`]: https://docs.rs/ogle/latest/ogle/sys/trait.SysApi.html
 [`sys::SysReal`]: https://docs.rs/ogle/latest/ogle/sys/struct.SysReal.html

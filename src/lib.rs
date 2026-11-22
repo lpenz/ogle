@@ -63,7 +63,7 @@
 //!   - [`time_wrapper`]: home of the
 //!     [`Instant`](time_wrapper::Instant) and
 //!     [`Duration`](time_wrapper::Duration) types, which use types
-//!     from [`chrono`] at the moment.
+//!     from [`jiff`] at the moment.
 //! - [`sys`]: most of the ogle code doesn't really call functions
 //!   that interact with the host system - we have the `sys` module
 //!   for that. The module does that by providing a [`sys::SysApi`]

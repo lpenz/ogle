@@ -15,8 +15,8 @@ use crate::view::View;
 
 #[instrument(level = "debug")]
 pub async fn run<SI: SysApi>(cli: Cli, sys: SI) -> Result<()> {
-    let refresh = Duration::milliseconds(250);
-    let sleep = Duration::seconds(cli.period.into());
+    let refresh = Duration::from_millis(250);
+    let sleep = Duration::from_secs(cli.period.into());
     let cmd = Cmd::from(cli.command);
     let engine = Engine::new(
         sys.clone(),

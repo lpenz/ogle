@@ -59,7 +59,7 @@ pub struct SysReal {}
 
 impl SysApi for SysReal {
     fn now(&self) -> Instant {
-        Instant::from(chrono::offset::Utc::now())
+        Instant::now()
     }
     fn get_width(&self) -> Option<u16> {
         term_wrapper::get_width()
@@ -80,7 +80,7 @@ impl SysApi for SysReal {
 ///
 /// Namely:
 /// - [`SysVirtual::now`] starts at the
-///   [epoch](chrono::DateTime::UNIX_EPOCH) and increments its return
+///   [epoch](Instant::EPOCH) and increments its return
 ///   value by 1 second at every call.
 /// - [`SysVirtual::get_width`] always returns 80.
 /// - [`SysVirtual::run_command`] ignores the `cmd` argument and
@@ -94,12 +94,12 @@ pub struct SysVirtual {
 
 impl SysApi for SysVirtual {
     /// Returns a "fake" current time by starting at the
-    /// [epoch](chrono::DateTime::UNIX_EPOCH) and incrementing the
+    /// [epoch](Instant::EPOCH) and incrementing the
     /// return value by 1 second at every call.
     fn now(&self) -> Instant {
         let mut now_ref = self.now.borrow_mut();
         let now = *now_ref;
-        *now_ref = &now + &Duration::seconds(1);
+        *now_ref = &now + &Duration::from_secs(1);
         now
     }
     fn get_width(&self) -> Option<u16> {
@@ -159,7 +159,7 @@ pub mod test {
         let streamed = streamer.collect::<Vec<_>>().await;
         assert_eq!(streamed, list);
         assert_eq!(sys.now(), Instant::default());
-        assert_eq!(sys.now(), &Instant::default() + &Duration::seconds(1));
+        assert_eq!(sys.now(), &Instant::default() + &Duration::from_secs(1));
         assert_eq!(sys.get_width(), Some(80));
         Ok(())
     }
